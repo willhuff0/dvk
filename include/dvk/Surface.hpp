@@ -2,7 +2,7 @@
 
 #include <vulkan/vulkan_raii.hpp>
 
-namespace DVK {
+namespace dvk {
     class Instance;
 
     class Surface {

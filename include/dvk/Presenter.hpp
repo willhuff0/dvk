@@ -5,7 +5,7 @@
 #include <vector>
 #include <tuple>
 
-namespace DVK {
+namespace dvk {
     class Surface;
     class Device;
     class CommandBuffer;
@@ -21,10 +21,10 @@ namespace DVK {
 
         void Resize(const Surface& surface, vk::Extent2D surfaceSize);
 
-        [[nodiscard]] std::tuple<PresenterResult, uint32_t> GetNextImage(const vk::raii::Semaphore& willSignalOnImageReady) const;
-        void PrepareImageForRendering(const CommandBuffer& commandBuffer, uint32_t imageIndex) const;
-        void PrepareImageForPresentation(const CommandBuffer& commandBuffer, uint32_t imageIndex) const;
-        [[nodiscard]] PresenterResult Present(uint32_t imageIndex, const vk::raii::Semaphore& willWaitToPresent) const;
+        [[nodiscard]] std::tuple<PresenterResult, uint32_t, const vk::raii::ImageView&, const vk::raii::Semaphore&> GetNextImage(const vk::raii::Semaphore& willSignalOnImageReady) const;
+        void PrepareImageForRendering(const vk::raii::CommandBuffer& commandBuffer, uint32_t imageIndex) const;
+        void PrepareImageForPresentation(const vk::raii::CommandBuffer& commandBuffer, uint32_t imageIndex) const;
+        [[nodiscard]] PresenterResult Present(uint32_t imageIndex) const;
 
     private:
         const Device& device;
@@ -35,5 +35,6 @@ namespace DVK {
         vk::raii::SwapchainKHR swapChain = nullptr;
         std::vector<vk::Image> swapChainImages;
         std::vector<vk::raii::ImageView> swapChainImageViews;
+        std::vector<vk::raii::Semaphore> renderFinishedSemaphores;
     };
 }

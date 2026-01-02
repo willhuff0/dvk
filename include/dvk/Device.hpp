@@ -2,7 +2,7 @@
 
 #include <vulkan/vulkan_raii.hpp>
 
-namespace DVK {
+namespace dvk {
     class Instance;
     class Surface;
 
@@ -13,11 +13,12 @@ namespace DVK {
         [[nodiscard]] const vk::raii::PhysicalDevice& GetPhysicalDevice() const;
         [[nodiscard]] const vk::raii::Device& GetDevice() const;
         [[nodiscard]] const vk::raii::Queue& GetQueue() const;
+        [[nodiscard]] uint32_t GetQueueFamilyIndex() const;
 
     private:
         vk::raii::PhysicalDevice physicalDevice = nullptr;
         vk::raii::Device device = nullptr;
         vk::raii::Queue queue = nullptr;
-        uint32_t queueFamily = ~0;
+        uint32_t queueFamilyIndex = ~0;
     };
 }

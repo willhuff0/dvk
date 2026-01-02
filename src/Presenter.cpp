@@ -1,13 +1,13 @@
-#include <DVK/Presenter.hpp>
-#include "DVK/Device.hpp"
-#include "DVK/Surface.hpp"
-#include "DVK/CommandBuffer.hpp"
+#include <dvk/Presenter.hpp>
+#include "dvk/Device.hpp"
+#include "dvk/Surface.hpp"
+#include "dvk/CommandBuffer.hpp"
 
 #include <unordered_set>
 #include <algorithm>
 #include <limits>
 
-using namespace DVK;
+using namespace dvk;
 
 static vk::Extent2D chooseSwapChainExtent(const vk::SurfaceCapabilitiesKHR& capabilities, vk::Extent2D surfaceSize) {
     if (capabilities.currentExtent.width != std::numeric_limits<uint32_t>::max()) {
@@ -36,8 +36,8 @@ static vk::PresentModeKHR chooseSwapChainPresentMode(const std::vector<vk::Prese
         presentModes.insert(availablePresentMode);
     }
 
-    // if (presentModes.contains(vk::PresentModeKHR::eFifoLatestReady)) return vk::PresentModeKHR::eFifoLatestReady;
-    // if (presentModes.contains(vk::PresentModeKHR::eFifoLatestReadyEXT)) return vk::PresentModeKHR::eFifoLatestReadyEXT;
+    if (presentModes.contains(vk::PresentModeKHR::eFifoLatestReady)) return vk::PresentModeKHR::eFifoLatestReady;
+    if (presentModes.contains(vk::PresentModeKHR::eFifoLatestReadyEXT)) return vk::PresentModeKHR::eFifoLatestReadyEXT;
     if (presentModes.contains(vk::PresentModeKHR::eMailbox)) return vk::PresentModeKHR::eMailbox;
     if (presentModes.contains(vk::PresentModeKHR::eFifoRelaxed)) return vk::PresentModeKHR::eFifoRelaxed;
     if (presentModes.contains(vk::PresentModeKHR::eFifo)) return vk::PresentModeKHR::eFifo;
@@ -78,6 +78,7 @@ void Presenter::Resize(const Surface& surface, vk::Extent2D surfaceSize) {
     imageFormat = format;
 
     swapChainImageViews.clear();
+    renderFinishedSemaphores.clear();
     vk::ImageViewCreateInfo imageViewCreateInfo {
         .viewType = vk::ImageViewType::e2D,
         .format = imageFormat,
@@ -92,16 +93,17 @@ void Presenter::Resize(const Surface& surface, vk::Extent2D surfaceSize) {
     for (auto& image : swapChainImages) {
         imageViewCreateInfo.image = image;
         swapChainImageViews.emplace_back(device.GetDevice(), imageViewCreateInfo);
+        renderFinishedSemaphores.emplace_back(device.GetDevice(), vk::SemaphoreCreateInfo());
     }
 }
 
-std::tuple<PresenterResult, uint32_t> Presenter::GetNextImage(const vk::raii::Semaphore& willSignalOnImageReady) const {
+std::tuple<PresenterResult, uint32_t, const vk::raii::ImageView&, const vk::raii::Semaphore&> Presenter::GetNextImage(const vk::raii::Semaphore& willSignalOnImageReady) const {
     auto [result, imageIndex] = swapChain.acquireNextImage(std::numeric_limits<uint64_t>::max(), willSignalOnImageReady, nullptr);
-    if (result == vk::Result::eErrorOutOfDateKHR) return std::make_tuple(PresenterResult::Fail_MustResize, ~0);
-    return std::make_tuple(PresenterResult::Success, imageIndex);
+    if (result == vk::Result::eErrorOutOfDateKHR) return std::make_tuple(PresenterResult::Fail_MustResize, ~0, nullptr, nullptr);
+    return std::make_tuple(PresenterResult::Success, imageIndex, swapChainImageViews[imageIndex], renderFinishedSemaphores[imageIndex]);
 }
 
-void Presenter::PrepareImageForRendering(const CommandBuffer& commandBuffer, uint32_t imageIndex) const {
+void Presenter::PrepareImageForRendering(const vk::raii::CommandBuffer& commandBuffer, uint32_t imageIndex) const {
     vk::ImageMemoryBarrier2 barrier = {
         .srcStageMask = vk::PipelineStageFlagBits2::eColorAttachmentOutput,
         .srcAccessMask = {},
@@ -118,13 +120,13 @@ void Presenter::PrepareImageForRendering(const CommandBuffer& commandBuffer, uin
             .layerCount = 1,
         },
     };
-    commandBuffer.GetCommandBuffer().pipelineBarrier2({
+    commandBuffer.pipelineBarrier2({
         .dependencyFlags = {},
         .imageMemoryBarrierCount = 1,
         .pImageMemoryBarriers = &barrier,
     });
 }
-void Presenter::PrepareImageForPresentation(const CommandBuffer& commandBuffer, uint32_t imageIndex) const {
+void Presenter::PrepareImageForPresentation(const vk::raii::CommandBuffer& commandBuffer, uint32_t imageIndex) const {
     vk::ImageMemoryBarrier2 barrier = {
         .srcStageMask = vk::PipelineStageFlagBits2::eColorAttachmentOutput,
         .srcAccessMask = vk::AccessFlagBits2::eColorAttachmentWrite,
@@ -141,18 +143,18 @@ void Presenter::PrepareImageForPresentation(const CommandBuffer& commandBuffer, 
             .layerCount = 1,
         },
     };
-    commandBuffer.GetCommandBuffer().pipelineBarrier2({
+    commandBuffer.pipelineBarrier2({
         .dependencyFlags = {},
         .imageMemoryBarrierCount = 1,
         .pImageMemoryBarriers = &barrier,
     });
 }
 
-PresenterResult Presenter::Present(uint32_t imageIndex, const vk::raii::Semaphore& willWaitToPresent) const {
+PresenterResult Presenter::Present(uint32_t imageIndex) const {
     try {
         auto result = device.GetQueue().presentKHR({
             .waitSemaphoreCount = 1,
-            .pWaitSemaphores = &*willWaitToPresent,
+            .pWaitSemaphores = &*renderFinishedSemaphores[imageIndex],
             .swapchainCount = 1,
             .pSwapchains = &*swapChain,
             .pImageIndices = &imageIndex,

@@ -1,11 +1,11 @@
-#include <DVK/Device.hpp>
-#include "DVK/Instance.hpp"
-#include "DVK/Surface.hpp"
+#include <dvk/Device.hpp>
+#include "dvk/Instance.hpp"
+#include "dvk/Surface.hpp"
 
 #include <algorithm>
 #include <stdexcept>
 
-using namespace DVK;
+using namespace dvk;
 
 const std::vector<const char*> DEVICE_EXTENSIONS = {
     vk::KHRSwapchainExtensionName,
@@ -79,10 +79,10 @@ Device::Device(const Instance& instance, const Surface& surface) {
             if (!(queueFamilies[i].queueFlags & vk::QueueFlagBits::eGraphics)) continue;
             if (!physicalDevice.getSurfaceSupportKHR(i, *surface.GetSurface())) continue;
 
-            queueFamily = i;
+            queueFamilyIndex = i;
             break;
         }
-        if (queueFamily == ~0) {
+        if (queueFamilyIndex == ~0) {
             throw std::runtime_error("Failed to find a queue supporting both graphics and presentation!");
         }
 
@@ -119,7 +119,7 @@ Device::Device(const Instance& instance, const Surface& surface) {
 
         float queuePriority = 0.5f;
         vk::DeviceQueueCreateInfo queueCreateInfo {
-            .queueFamilyIndex = queueFamily,
+            .queueFamilyIndex = queueFamilyIndex,
             .queueCount = 1,
             .pQueuePriorities = &queuePriority,
         };
@@ -130,7 +130,7 @@ Device::Device(const Instance& instance, const Surface& surface) {
             .enabledExtensionCount = static_cast<uint32_t>(extensions.size()),
             .ppEnabledExtensionNames = extensions.data(),
         });
-        queue = vk::raii::Queue(device, queueFamily, 0);
+        queue = vk::raii::Queue(device, queueFamilyIndex, 0);
     }
 }
 
@@ -144,4 +144,8 @@ const vk::raii::Device& Device::GetDevice() const {
 
 const vk::raii::Queue& Device::GetQueue() const {
     return queue;
+}
+
+uint32_t Device::GetQueueFamilyIndex() const {
+    return queueFamilyIndex;
 }

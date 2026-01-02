@@ -1,7 +1,7 @@
-#include <DVK/Surface.hpp>
-#include "DVK/Instance.hpp"
+#include <dvk/Surface.hpp>
+#include "dvk/Instance.hpp"
 
-using namespace DVK;
+using namespace dvk;
 
 Surface::Surface(const Instance& instance, VkSurfaceKHR surface_) {
     surface = vk::raii::SurfaceKHR(instance.GetInstance(), surface_);

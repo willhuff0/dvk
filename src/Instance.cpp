@@ -1,4 +1,4 @@
-#include <DVK/Instance.hpp>
+#include <dvk/Instance.hpp>
 
 #include <ranges>
 #include <string>
@@ -10,7 +10,7 @@ constexpr bool ENABLE_VALIDATION_LAYERS = false;
 constexpr bool ENABLE_VALIDATION_LAYERS = true;
 #endif
 
-using namespace DVK;
+using namespace dvk;
 
 Instance::Instance(const std::vector<const char*>& extensions, const char* appName) {
     vk::ApplicationInfo appInfo {

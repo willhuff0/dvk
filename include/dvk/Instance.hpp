@@ -4,7 +4,7 @@
 
 #include <vector>
 
-namespace DVK {
+namespace dvk {
     class Instance {
     public:
         explicit Instance(const std::vector<const char*>& extensions, const char* appName = "DVK App");
