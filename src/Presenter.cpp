@@ -35,8 +35,8 @@ static vk::PresentModeKHR chooseSwapChainPresentMode(const std::vector<vk::Prese
         presentModes.insert(availablePresentMode);
     }
 
-    if (presentModes.contains(vk::PresentModeKHR::eFifoLatestReady)) return vk::PresentModeKHR::eFifoLatestReady;
-    if (presentModes.contains(vk::PresentModeKHR::eFifoLatestReadyEXT)) return vk::PresentModeKHR::eFifoLatestReadyEXT;
+    // if (presentModes.contains(vk::PresentModeKHR::eFifoLatestReady)) return vk::PresentModeKHR::eFifoLatestReady;
+    // if (presentModes.contains(vk::PresentModeKHR::eFifoLatestReadyEXT)) return vk::PresentModeKHR::eFifoLatestReadyEXT;
     if (presentModes.contains(vk::PresentModeKHR::eMailbox)) return vk::PresentModeKHR::eMailbox;
     if (presentModes.contains(vk::PresentModeKHR::eFifoRelaxed)) return vk::PresentModeKHR::eFifoRelaxed;
     if (presentModes.contains(vk::PresentModeKHR::eFifo)) return vk::PresentModeKHR::eFifo;

@@ -10,6 +10,7 @@
 
 namespace dvk {
     class Device;
+    class CommandEncoder;
 
     class Buffer {
     public:
@@ -18,16 +19,21 @@ namespace dvk {
 
         static Builder Create(const Device& device);
         static Ref CreateStagingBuffer(const Device& device, vk::DeviceSize size);
-        explicit Buffer(vma::raii::Buffer buffer);
+        Buffer(vma::raii::Buffer buffer, vk::DeviceSize size);
 
         [[nodiscard]] const vma::raii::Buffer& GetBuffer() const;
-        [[nodiscard]] void* GetMappedData() const;
+        [[nodiscard]] vk::DeviceSize GetSize() const;
 
+        [[nodiscard]] void* GetMappedData() const;
         [[nodiscard]] void* Map() const;
         void Unmap() const;
+        void Flush(vk::DeviceSize offset = 0, vk::DeviceSize size = 0) const;
+
+        void Write(const CommandEncoder& commandEncoder, void* src, vk::DeviceSize size = 0);
 
     private:
         vma::raii::Buffer buffer = nullptr;
+        vk::DeviceSize size;
 
     public:
         class Builder {

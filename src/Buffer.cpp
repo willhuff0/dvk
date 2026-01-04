@@ -1,5 +1,6 @@
 #include <dvk/Buffer.hpp>
 #include "dvk/Device.hpp"
+#include "dvk/CommandEncoder.hpp"
 
 #include <utility>
 
@@ -21,13 +22,17 @@ Buffer::Ref Buffer::CreateStagingBuffer(const Device& device, vk::DeviceSize siz
             .flags = vma::AllocationCreateFlagBits::eHostAccessSequentialWrite | vma::AllocationCreateFlagBits::eMapped,
             .usage = vma::MemoryUsage::eAuto,
         }
-    ));
+    ), size);
 }
 
-Buffer::Buffer(vma::raii::Buffer buffer) : buffer(std::move(buffer)) { }
+Buffer::Buffer(vma::raii::Buffer buffer, vk::DeviceSize size) : buffer(std::move(buffer)), size(size) { }
 
 const vma::raii::Buffer& Buffer::GetBuffer() const {
     return buffer;
+}
+
+vk::DeviceSize Buffer::GetSize() const {
+    return size;
 }
 
 void* Buffer::GetMappedData() const {
@@ -40,6 +45,23 @@ void* Buffer::Map() const {
 
 void Buffer::Unmap() const {
     buffer.getAllocation().unmap();
+}
+
+void Buffer::Flush(vk::DeviceSize offset , vk::DeviceSize size_) const {
+    if (size_ == 0) size_ = size;
+
+    buffer.getAllocation().flush(offset, size_);
+}
+
+void Buffer::Write(const CommandEncoder& commandEncoder, void* src, vk::DeviceSize size_) {
+    if (size_ == 0) size_ = size;
+
+    auto stagingBuffer = Buffer::CreateStagingBuffer(commandEncoder.GetDevice(), size_);
+    std::memcpy(stagingBuffer->GetMappedData(), src, size_);
+
+    commandEncoder.ExecuteOneTime([&](const auto& commandBuffer) {
+        commandBuffer.copyBuffer(stagingBuffer->GetBuffer(), buffer, vk::BufferCopy(0, 0, size_));
+    });
 }
 
 // Buffer Builder
@@ -100,5 +122,5 @@ Buffer::Ref Buffer::Builder::Build() const {
     if (!label.empty()) device.GetDevice().setDebugUtilsObjectNameEXT(*buffer, label);
 #endif
 
-    return std::make_shared<Buffer>(std::move(buffer));
+    return std::make_shared<Buffer>(std::move(buffer), bufferInfo.size);
 }

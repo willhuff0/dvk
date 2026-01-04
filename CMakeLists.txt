@@ -21,6 +21,7 @@ target_sources(dvk
         src/Buffer.cpp
         src/Texture.cpp
         src/TextureView.cpp
+        src/Sampler.cpp
     PUBLIC
         FILE_SET HEADERS
         BASE_DIRS include
@@ -37,6 +38,7 @@ target_sources(dvk
             include/dvk/CommandEncoder.hpp
             include/dvk/Buffer.hpp
             include/dvk/TextureView.hpp
+            include/dvk/Sampler.hpp
 )
 
 find_package(glfw3 REQUIRED)
