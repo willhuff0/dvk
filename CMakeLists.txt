@@ -8,7 +8,6 @@ add_library(dvk)
 
 target_sources(dvk
     PRIVATE
-        test.cpp
         src/Instance.cpp
         src/Surface.cpp
         src/Device.cpp
@@ -26,6 +25,7 @@ target_sources(dvk
         FILE_SET HEADERS
         BASE_DIRS include
         FILES
+            include/dvk/dvk.hpp
             include/dvk/Config.hpp
             include/dvk/Instance.hpp
             include/dvk/Surface.hpp
