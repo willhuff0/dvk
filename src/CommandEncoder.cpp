@@ -49,7 +49,7 @@ std::tuple<uint32_t, const vk::raii::CommandBuffer&> CommandEncoder::GetNextFram
     frameCommandBuffers[frameIndex].begin({});
 
     nextFrameIndex = (nextFrameIndex + 1) % framesInFlight;
-    return std::make_tuple(frameIndex, frameCommandBuffers[frameIndex]);
+    return { frameIndex, frameCommandBuffers[frameIndex] };
 }
 
 void CommandEncoder::SubmitFrame(uint32_t frameIndex, const vk::raii::Semaphore& willSignalOnRenderFinished) const {

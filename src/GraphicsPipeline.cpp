@@ -151,7 +151,7 @@ GraphicsPipeline::Ref GraphicsPipeline::Builder::Build() {
         .scissorCount = 1,
     };
 
-    constexpr std::vector dynamicStates = {
+    static std::vector dynamicStates = {
         vk::DynamicState::eViewport,
         vk::DynamicState::eScissor,
     };
@@ -188,7 +188,7 @@ GraphicsPipeline::Ref GraphicsPipeline::Builder::Build() {
     if (!label.empty()) device.GetDevice().setDebugUtilsObjectNameEXT(*pipeline, label);
 #endif
 
-    return std::make_shared<GraphicsPipeline>(layout, pipeline);
+    return std::make_shared<GraphicsPipeline>(layout, std::move(pipeline));
 }
 
 // Rasterizer Builder

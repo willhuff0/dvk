@@ -105,7 +105,7 @@ void Texture::Write(const CommandEncoder& commandEncoder, void* src, vk::DeviceS
 
     commandEncoder.ExecuteOneTime([&](const auto& commandBuffer) {
         transitionImageLayout(commandBuffer, image, vk::ImageLayout::eUndefined, vk::ImageLayout::eTransferDstOptimal);
-        copyBufferToImage(commandBuffer, stagingBuffer->GetBuffer(), image, image, mipLevel, arrayLayer);
+        copyBufferToImage(commandBuffer, stagingBuffer->GetBuffer(), image, extent, mipLevel, arrayLayer);
         transitionImageLayout(commandBuffer, image, vk::ImageLayout::eTransferDstOptimal, vk::ImageLayout::eShaderReadOnlyOptimal);
     });
 }
@@ -201,5 +201,5 @@ Texture::Ref Texture::Builder::Build() const {
     if (!label.empty()) device.GetDevice().setDebugUtilsObjectNameEXT(*image, label);
 #endif
 
-    return std::make_shared<Texture>(image, imageInfo.extent, imageInfo.format);
+    return std::make_shared<Texture>(std::move(image), imageInfo.extent, imageInfo.format);
 }

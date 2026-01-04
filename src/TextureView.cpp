@@ -70,5 +70,5 @@ TextureView::Ref TextureView::Builder::Build() {
     if (!label.empty()) device.GetDevice().setDebugUtilsObjectNameEXT(*imageView, label);
 #endif
 
-    return std::make_shared<TextureView>(texture, imageView);
+    return std::make_shared<TextureView>(texture, std::move(imageView));
 }

@@ -100,5 +100,5 @@ Buffer::Ref Buffer::Builder::Build() const {
     if (!label.empty()) device.GetDevice().setDebugUtilsObjectNameEXT(*buffer, label);
 #endif
 
-    return std::make_shared<Buffer>(buffer);
+    return std::make_shared<Buffer>(std::move(buffer));
 }

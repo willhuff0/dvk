@@ -98,8 +98,8 @@ void Presenter::Resize(const Surface& surface, vk::Extent2D surfaceSize) {
 
 std::tuple<PresenterResult, uint32_t, const vk::raii::ImageView&, const vk::raii::Semaphore&> Presenter::GetNextImage(const vk::raii::Semaphore& willSignalOnImageReady) const {
     auto [result, imageIndex] = swapChain.acquireNextImage(std::numeric_limits<uint64_t>::max(), willSignalOnImageReady, nullptr);
-    if (result == vk::Result::eErrorOutOfDateKHR) return std::make_tuple(PresenterResult::Fail_MustResize, ~0, nullptr, nullptr);
-    return std::make_tuple(PresenterResult::Success, imageIndex, swapChainImageViews[imageIndex], renderFinishedSemaphores[imageIndex]);
+    if (result == vk::Result::eErrorOutOfDateKHR) return { PresenterResult::Fail_MustResize, ~0, nullptr, nullptr };
+    return { PresenterResult::Success, imageIndex, swapChainImageViews[imageIndex], renderFinishedSemaphores[imageIndex] };
 }
 
 void Presenter::PrepareImageForRendering(const vk::raii::CommandBuffer& commandBuffer, uint32_t imageIndex) const {

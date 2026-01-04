@@ -53,7 +53,7 @@ PipelineLayout::Ref PipelineLayout::Builder::Build() {
     if (!label.empty()) device.GetDevice().setDebugUtilsObjectNameEXT(*pipelineLayout, label);
 #endif
 
-    return std::make_shared<PipelineLayout>(pipelineLayout);
+    return std::make_shared<PipelineLayout>(std::move(pipelineLayout));
 }
 
 void PipelineLayout::Builder::addPushConstantRange(vk::PushConstantRange pushConstantRange) {
