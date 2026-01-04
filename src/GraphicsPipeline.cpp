@@ -185,7 +185,7 @@ GraphicsPipeline::Ref GraphicsPipeline::Builder::Build() {
     auto pipeline = vk::raii::Pipeline(device.GetDevice(), nullptr, pipelineCreateInfoChain.get<vk::GraphicsPipelineCreateInfo>());
 
 #if defined(DVK_ENABLE_DEBUG_LABELS)
-    if (!label.empty()) device.GetDevice().setDebugUtilsObjectNameEXT(pipeline, label);
+    if (!label.empty()) device.GetDevice().setDebugUtilsObjectNameEXT(*pipeline, label);
 #endif
 
     return std::make_shared<GraphicsPipeline>(layout, pipeline);

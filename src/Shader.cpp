@@ -12,7 +12,7 @@ Shader::Shader(const Device& device, const std::vector<char>& code, const std::s
     });
 
 #if defined(DVK_ENABLE_DEBUG_LABELS)
-    if (!label.empty()) device.GetDevice().setDebugUtilsObjectNameEXT(shaderModule, label);
+    if (!label.empty()) device.GetDevice().setDebugUtilsObjectNameEXT(*shaderModule, label);
 #endif
 }
 

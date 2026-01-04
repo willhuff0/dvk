@@ -132,6 +132,13 @@ Device::Device(const Instance& instance, const Surface& surface) {
         });
         queue = vk::raii::Queue(device, queueFamilyIndex, 0);
     }
+
+    // Allocator
+    {
+        allocator = vma::raii::Allocator(instance.GetInstance(), device, {
+            .physicalDevice = physicalDevice,
+        });
+    }
 }
 
 const vk::raii::PhysicalDevice& Device::GetPhysicalDevice() const {
@@ -148,4 +155,8 @@ const vk::raii::Queue& Device::GetQueue() const {
 
 uint32_t Device::GetQueueFamilyIndex() const {
     return queueFamilyIndex;
+}
+
+const vma::raii::Allocator& Device::GetAllocator() const {
+    return allocator;
 }

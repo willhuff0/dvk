@@ -50,7 +50,7 @@ PipelineLayout::Ref PipelineLayout::Builder::Build() {
     });
 
 #if defined(DVK_ENABLE_DEBUG_LABELS)
-    if (!label.empty()) device.GetDevice().setDebugUtilsObjectNameEXT(pipelineLayout, label);
+    if (!label.empty()) device.GetDevice().setDebugUtilsObjectNameEXT(*pipelineLayout, label);
 #endif
 
     return std::make_shared<PipelineLayout>(pipelineLayout);

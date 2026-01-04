@@ -13,11 +13,13 @@ namespace dvk {
     public:
         explicit CommandEncoder(const Device& device, uint32_t framesInFlight = 2);
 
+        [[nodiscard]] const Device& GetDevice() const;
+
         const vk::raii::Semaphore& WaitForNextFrame() const;
         [[nodiscard]] std::tuple<uint32_t, const vk::raii::CommandBuffer&> GetNextFrame();
         void SubmitFrame(uint32_t frameIndex, const vk::raii::Semaphore& willSignalOnRenderFinished) const;
 
-        void ExecuteOneTime(const std::function<void(const vk::raii::CommandBuffer&)>& func);
+        void ExecuteOneTime(const std::function<void(const vk::raii::CommandBuffer&)>& func) const;
 
     private:
         const Device& device;

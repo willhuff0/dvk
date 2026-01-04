@@ -30,6 +30,10 @@ CommandEncoder::CommandEncoder(const Device& device, uint32_t framesInFlight)
     }
 }
 
+const Device& CommandEncoder::GetDevice() const {
+    return device;
+}
+
 const vk::raii::Semaphore& CommandEncoder::WaitForNextFrame() const {
     if (device.GetDevice().waitForFences(*frameFences[nextFrameIndex], vk::True, std::numeric_limits<uint64_t>::max()) != vk::Result::eSuccess) {
         throw std::runtime_error("Failed to wait for fence!");
@@ -62,4 +66,22 @@ void CommandEncoder::SubmitFrame(uint32_t frameIndex, const vk::raii::Semaphore&
         .pSignalSemaphores = &*willSignalOnRenderFinished,
     };
     device.GetQueue().submit(submitInfo, *frameFences[frameIndex]);
+}
+
+void CommandEncoder::ExecuteOneTime(const std::function<void(const vk::raii::CommandBuffer&)>& func) const {
+    auto commandBuffer = std::move(vk::raii::CommandBuffers(device.GetDevice(), {
+        .commandPool = oneTimeSubmitCommandPool,
+        .level = vk::CommandBufferLevel::ePrimary,
+        .commandBufferCount = 1,
+    }).front());
+    commandBuffer.begin({
+        .flags = vk::CommandBufferUsageFlagBits::eOneTimeSubmit,
+    });
+    func(commandBuffer);
+    commandBuffer.end();
+    device.GetQueue().submit(vk::SubmitInfo {
+        .commandBufferCount = 1,
+        .pCommandBuffers = &*commandBuffer,
+    });
+    device.GetDevice().waitIdle();
 }

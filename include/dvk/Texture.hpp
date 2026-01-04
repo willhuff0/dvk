@@ -1,0 +1,62 @@
+#pragma once
+
+#include <dvk/Config.hpp>
+
+#include <vulkan/vulkan_raii.hpp>
+#include <vk_mem_alloc_raii.hpp>
+
+#include <memory>
+#include <string>
+
+namespace dvk {
+    class Device;
+    class CommandEncoder;
+
+    class Texture {
+    public:
+        class Builder;
+        using Ref = std::shared_ptr<Texture>;
+
+        static Builder Create(const Device& device);
+        explicit Texture(vma::raii::Image image, vk::Extent3D extent, vk::Format format);
+
+        [[nodiscard]] const vma::raii::Image& GetImage() const;
+        [[nodiscard]] vk::Extent3D GetExtent() const;
+        [[nodiscard]] vk::Format GetFormat() const;
+
+        void Write(const CommandEncoder& commandEncoder, void* src, vk::DeviceSize size, uint32_t mipLevel = 0, uint32_t arrayLayer = 0);
+
+        void TransitionLayout(const vk::raii::CommandBuffer& commandBuffer, vk::ImageLayout from, vk::ImageLayout to) const;
+        void PrepareForDepthAttachment(const vk::raii::CommandBuffer& commandBuffer) const;
+
+    private:
+        vma::raii::Image image;
+        vk::Extent3D extent;
+        vk::Format format;
+
+    public:
+        class Builder {
+        public:
+            explicit Builder(const Device& device);
+
+            Builder& SetLabel(const std::string& label);
+            Builder& SetType(vk::ImageType type);
+            Builder& SetFormat(vk::Format format);
+            Builder& SetExtent(vk::Extent3D extent);
+            Builder& SetMipLevelCount(uint32_t mipLevelCount);
+            Builder& SetArrayLayerCount(uint32_t arrayLayerCount);
+            Builder& SetSampleCount(vk::SampleCountFlagBits sampleCount);
+            Builder& SetUsage(vk::ImageUsageFlags usage);
+            Builder& EnableWrite();
+
+            [[nodiscard]] Ref Build() const;
+
+        private:
+            const Device& device;
+            vk::ImageCreateInfo imageInfo;
+#if defined(DVK_ENABLE_DEBUG_LABELS)
+            std::string label;
+#endif
+        };
+    };
+}

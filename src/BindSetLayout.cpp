@@ -37,7 +37,7 @@ BindSetLayout::Ref BindSetLayout::Builder::Build() {
     });
 
 #if defined(DVK_ENABLE_DEBUG_LABELS)
-    if (!label.empty()) device.GetDevice().setDebugUtilsObjectNameEXT(descriptorSetLayout, label);
+    if (!label.empty()) device.GetDevice().setDebugUtilsObjectNameEXT(*descriptorSetLayout, label);
 #endif
 
     return std::make_shared<BindSetLayout>(std::move(descriptorSetLayout));
