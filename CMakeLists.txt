@@ -21,6 +21,8 @@ target_sources(dvk
         src/Texture.cpp
         src/TextureView.cpp
         src/Sampler.cpp
+        src/BindPool.cpp
+        src/BindSet.cpp
     PUBLIC
         FILE_SET HEADERS
         BASE_DIRS include
@@ -39,6 +41,8 @@ target_sources(dvk
             include/dvk/Buffer.hpp
             include/dvk/TextureView.hpp
             include/dvk/Sampler.hpp
+            include/dvk/BindPool.hpp
+            include/dvk/BindSet.hpp
 )
 
 find_package(glfw3 REQUIRED)
@@ -56,7 +60,7 @@ target_compile_definitions(dvk
 )
 
 target_link_libraries(dvk
-    PRIVATE
+    PUBLIC
         glfw
         Vulkan::Vulkan
         glm::glm
