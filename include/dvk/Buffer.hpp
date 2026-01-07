@@ -1,21 +1,24 @@
 #pragma once
 
 #include <dvk/Config.hpp>
+#include "Device.hpp"
 
 #include <vulkan/vulkan_raii.hpp>
 #include <vk_mem_alloc_raii.hpp>
 
 #include <memory>
 #include <string>
+#include <array>
 
 namespace dvk {
-    class Device;
     class CommandEncoder;
 
     class Buffer {
     public:
         class Builder;
         using Ref = std::shared_ptr<Buffer>;
+        template<size_t N>
+        using Refs = std::array<Ref, N>;
 
         static Builder Create(const Device& device);
         static Ref CreateStagingBuffer(const Device& device, vk::DeviceSize size);
@@ -29,7 +32,8 @@ namespace dvk {
         void Unmap() const;
         void Flush(vk::DeviceSize offset = 0, vk::DeviceSize size = 0) const;
 
-        void Write(const CommandEncoder& commandEncoder, void* src, vk::DeviceSize size = 0);
+        void CopyToAndFlush(const void* src, vk::DeviceSize offset = 0, vk::DeviceSize size = 0);
+        void WriteWithStaging(const CommandEncoder& commandEncoder, const void* src, vk::DeviceSize offset = 0, vk::DeviceSize size = 0);
 
     private:
         vma::raii::Buffer buffer = nullptr;
@@ -46,8 +50,12 @@ namespace dvk {
             Builder& AllowSequentialWrite(bool sequentialWrite = true);
             Builder& AllowRandomAccess(bool randomAccess = true);
             Builder& EnablePersistentMapping(bool persistentMapping = true);
+            Builder& EnableCopyToAndFlush();
+            Builder& EnableWriteWithStaging();
 
             [[nodiscard]] Ref Build() const;
+            template<size_t N>
+            [[nodiscard]] Refs<N> Build() const;
 
         private:
             const Device& device;
@@ -58,4 +66,21 @@ namespace dvk {
 #endif
         };
     };
+
+    template<size_t N>
+    Buffer::Refs<N> Buffer::Builder::Build() const {
+        std::array<Ref, N> buffers;
+
+        for (size_t i = 0; i < N; i++) {
+            auto buffer = vma::raii::Buffer(device.GetAllocator(), bufferInfo, allocationInfo);
+
+#if defined(DVK_ENABLE_DEBUG_LABELS)
+            if (!label.empty()) device.GetDevice().setDebugUtilsObjectNameEXT(*buffer, label + " (" + std::to_string(N) + ")");
+#endif
+
+            buffers[i] = std::make_shared<Buffer>(std::move(buffer), bufferInfo.size);
+        }
+
+        return buffers;
+    }
 }

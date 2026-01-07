@@ -8,6 +8,8 @@
 #include <memory>
 #include <vector>
 #include <string>
+#include <unordered_map>
+#include <utility>
 
 namespace dvk {
     class Device;
@@ -16,6 +18,7 @@ namespace dvk {
     class GraphicsPipeline {
     public:
         class Builder;
+        class StageBuilder;
         class RasterizerBuilder;
         class MultisampleBuilder;
         class AttachmentBuilder;
@@ -34,6 +37,7 @@ namespace dvk {
 
     public:
         class Builder {
+            friend class StageBuilder;
             friend class RasterizerBuilder;
             friend class MultisampleBuilder;
             friend class AttachmentBuilder;
@@ -42,7 +46,7 @@ namespace dvk {
             Builder(const Device& device, PipelineLayout::Ref layout);
 
             Builder& SetLabel(const std::string& label);
-            Builder& AddStage(vk::ShaderStageFlagBits stage, const Shader& shader, const char* entry);
+            StageBuilder AddStage(vk::ShaderStageFlagBits stage, const Shader& shader, const char* entry);
             Builder& SetVertexInput(const std::vector<vk::VertexInputBindingDescription>& bindings, const std::vector<vk::VertexInputAttributeDescription>& attributes);
             Builder& SetTopology(vk::PrimitiveTopology topology);
             RasterizerBuilder SetRasterizer();
@@ -59,11 +63,15 @@ namespace dvk {
             [[nodiscard]] Ref Build();
 
         private:
+            void addStage(vk::PipelineShaderStageCreateInfo stageInfo, std::unordered_map<uint32_t, std::pair<std::unique_ptr<unsigned char[]>, size_t>> specialization, size_t totalSpecializationMapEntries, size_t specializationDataSize);
             void addAttachment(vk::Format format, vk::PipelineColorBlendAttachmentState colorBlendAttachment);
 
             const Device& device;
             PipelineLayout::Ref layout;
             std::vector<vk::PipelineShaderStageCreateInfo> shaderStages;
+            std::unordered_map<size_t, std::unordered_map<uint32_t, std::pair<std::unique_ptr<unsigned char[]>, size_t>>> shaderStageSpecializations;
+            size_t totalSpecializationMapEntries = 0;
+            size_t specializationDataSize = 0;
             std::vector<vk::VertexInputBindingDescription> vertexInputBindings;
             std::vector<vk::VertexInputAttributeDescription> vertexInputAttributes;
             vk::PipelineInputAssemblyStateCreateInfo inputAssembly;
@@ -77,6 +85,23 @@ namespace dvk {
 #if defined(DVK_ENABLE_DEBUG_LABELS)
             std::string label;
 #endif
+        };
+
+        class StageBuilder {
+        public:
+            StageBuilder(Builder& builder, vk::ShaderStageFlagBits stage, const Shader& shader, const char* entry);
+
+            StageBuilder& SetConstant(uint32_t id, void* src, size_t size);
+            StageBuilder& SetConstant(uint32_t id, uint32_t value);
+
+            Builder& FinishStage();
+
+        private:
+            Builder& builder;
+            vk::PipelineShaderStageCreateInfo stageInfo;
+            std::unordered_map<uint32_t, std::pair<std::unique_ptr<unsigned char[]>, size_t>> specialization;
+            size_t totalSpecializationMapEntries = 0;
+            size_t specializationDataSize = 0;
         };
 
         class RasterizerBuilder {

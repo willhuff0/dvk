@@ -18,13 +18,20 @@ namespace dvk {
         using Ref = std::shared_ptr<Texture>;
 
         static Builder Create(const Device& device);
-        explicit Texture(vma::raii::Image image, vk::Extent3D extent, vk::Format format);
+#if defined(DVK_ENABLE_DEBUG_LABELS)
+        Texture(vma::raii::Image image, vk::Extent3D extent, vk::Format format, std::string label);
+#else
+        Texture(vma::raii::Image image, vk::Extent3D extent, vk::Format format);
+#endif
 
         [[nodiscard]] const vma::raii::Image& GetImage() const;
         [[nodiscard]] vk::Extent3D GetExtent() const;
         [[nodiscard]] vk::Format GetFormat() const;
+#if defined(DVK_ENABLE_DEBUG_LABELS)
+        [[nodiscard]] const std::string& GetLabel() const;
+#endif
 
-        void Write(const CommandEncoder& commandEncoder, void* src, vk::DeviceSize size, uint32_t mipLevel = 0, uint32_t arrayLayer = 0);
+        void WriteWithStaging(const CommandEncoder& commandEncoder, const void* src, vk::DeviceSize size, uint32_t mipLevel = 0, uint32_t arrayLayer = 0);
 
         void TransitionLayout(const vk::raii::CommandBuffer& commandBuffer, vk::ImageLayout from, vk::ImageLayout to) const;
         void PrepareForDepthAttachment(const vk::raii::CommandBuffer& commandBuffer) const;
@@ -33,6 +40,9 @@ namespace dvk {
         vma::raii::Image image;
         vk::Extent3D extent;
         vk::Format format;
+#if defined(DVK_ENABLE_DEBUG_LABELS)
+        std::string label;
+#endif
 
     public:
         class Builder {
@@ -47,7 +57,9 @@ namespace dvk {
             Builder& SetArrayLayerCount(uint32_t arrayLayerCount);
             Builder& SetSampleCount(vk::SampleCountFlagBits sampleCount);
             Builder& SetUsage(vk::ImageUsageFlags usage);
-            Builder& EnableWrite();
+            Builder& AllowCubeViews(bool cubeViews = true);
+            Builder& Allow2DArrayViews(bool arrayViews = true);
+            Builder& EnableWriteWithStaging();
 
             [[nodiscard]] Ref Build() const;
 

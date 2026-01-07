@@ -21,6 +21,9 @@ namespace dvk {
 
         void Resize(const Surface& surface, vk::Extent2D surfaceSize);
 
+        [[nodiscard]] vk::Format GetFormat() const;
+        [[nodiscard]] vk::Extent2D GetExtent() const;
+
         [[nodiscard]] std::tuple<PresenterResult, uint32_t, const vk::raii::ImageView&, const vk::raii::Semaphore&> GetNextImage(const vk::raii::Semaphore& willSignalOnImageReady) const;
         void PrepareImageForRendering(const vk::raii::CommandBuffer& commandBuffer, uint32_t imageIndex) const;
         void PrepareImageForPresentation(const vk::raii::CommandBuffer& commandBuffer, uint32_t imageIndex) const;

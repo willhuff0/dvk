@@ -12,6 +12,8 @@
 #include "dvk/Buffer.hpp"
 #include "dvk/TextureView.hpp"
 #include "dvk/Sampler.hpp"
+#include "dvk/BindPool.hpp"
+#include "dvk/BindSet.hpp"
 
 #include <vulkan/vulkan_raii.hpp>
 #include <vk_mem_alloc_raii.hpp>

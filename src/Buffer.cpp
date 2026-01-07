@@ -1,5 +1,4 @@
 #include <dvk/Buffer.hpp>
-#include "dvk/Device.hpp"
 #include "dvk/CommandEncoder.hpp"
 
 #include <utility>
@@ -53,14 +52,21 @@ void Buffer::Flush(vk::DeviceSize offset , vk::DeviceSize size_) const {
     buffer.getAllocation().flush(offset, size_);
 }
 
-void Buffer::Write(const CommandEncoder& commandEncoder, void* src, vk::DeviceSize size_) {
+void Buffer::CopyToAndFlush(const void* src, vk::DeviceSize offset, vk::DeviceSize size_) {
+    if (size_ == 0) size_ = size;
+
+    std::memcpy(static_cast<char*>(GetMappedData()) + offset, src, size_);
+    Flush(offset, size_);
+}
+
+void Buffer::WriteWithStaging(const CommandEncoder& commandEncoder, const void* src, vk::DeviceSize offset, vk::DeviceSize size_) {
     if (size_ == 0) size_ = size;
 
     auto stagingBuffer = Buffer::CreateStagingBuffer(commandEncoder.GetDevice(), size_);
     std::memcpy(stagingBuffer->GetMappedData(), src, size_);
 
     commandEncoder.ExecuteOneTime([&](const auto& commandBuffer) {
-        commandBuffer.copyBuffer(stagingBuffer->GetBuffer(), buffer, vk::BufferCopy(0, 0, size_));
+        commandBuffer.copyBuffer(stagingBuffer->GetBuffer(), buffer, vk::BufferCopy(0, offset, size_));
     });
 }
 
@@ -112,6 +118,16 @@ Buffer::Builder& Buffer::Builder::EnablePersistentMapping(bool persistentMapping
     } else {
         allocationInfo.flags &= ~vma::AllocationCreateFlagBits::eMapped;
     }
+    return *this;
+}
+
+Buffer::Builder& Buffer::Builder::EnableCopyToAndFlush() {
+    allocationInfo.flags |= vma::AllocationCreateFlagBits::eMapped | vma::AllocationCreateFlagBits::eHostAccessRandom;
+    return *this;
+}
+
+Buffer::Builder& Buffer::Builder::EnableWriteWithStaging() {
+    bufferInfo.usage |= vk::BufferUsageFlagBits::eTransferDst;
     return *this;
 }
 

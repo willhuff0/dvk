@@ -1,8 +1,4 @@
 #include <dvk/BindSet.hpp>
-#include "dvk/Device.hpp"
-#include "dvk/Buffer.hpp"
-
-#include <dvk/Config.hpp>
 
 #include <utility>
 
@@ -34,8 +30,8 @@ BufferBinder Binder::BindBuffer(uint32_t binding) {
     return BufferBinder(*this, binding);
 }
 
-ImageBinder Binder::BindImage(uint32_t binding) {
-    return ImageBinder(*this, binding);
+TextureBinder Binder::BindTexture(uint32_t binding) {
+    return TextureBinder(*this, binding);
 }
 
 SamplerBinder Binder::BindSampler(uint32_t binding) {
@@ -43,43 +39,57 @@ SamplerBinder Binder::BindSampler(uint32_t binding) {
 }
 
 void Binder::Update(const vk::raii::DescriptorSet& descriptorSet) {
-    for (size_t i = 0; i < writes.size(); i++) {
-        writes[i].dstSet = descriptorSet;
-        switch (writes[i].descriptorType) {
+    std::vector<vk::WriteDescriptorSet> writesVector;
+    writesVector.reserve(writes.size());
+
+    for (auto& [binding, write] : writes) {
+        write.dstSet = descriptorSet;
+        switch (write.descriptorType) {
             case vk::DescriptorType::eUniformBuffer:
             case vk::DescriptorType::eStorageBuffer:
             case vk::DescriptorType::eUniformBufferDynamic:
             case vk::DescriptorType::eStorageBufferDynamic:
-                writes[i].pBufferInfo = &bufferInfos[writeIndexToInfoIndex[i]];
+                bufferInfos.at(binding).buffer = buffers.at(binding)->GetBuffer();
+                write.pBufferInfo = &bufferInfos.at(binding);
                 break;
             case vk::DescriptorType::eSampledImage:
             case vk::DescriptorType::eStorageImage:
-            case vk::DescriptorType::eCombinedImageSampler:
+                imageInfos.at(binding).imageView = textureViews.at(binding)->GetImageView();
+                write.pImageInfo = &imageInfos.at(binding);
+                break;
             case vk::DescriptorType::eSampler:
-                writes[i].pImageInfo = &imageInfos[writeIndexToInfoIndex[i]];
+                imageInfos.at(binding).sampler = samplers.at(binding)->GetSampler();
+                write.pImageInfo = &imageInfos.at(binding);
+                break;
+            case vk::DescriptorType::eCombinedImageSampler:
+                imageInfos.at(binding).imageView = textureViews.at(binding)->GetImageView();
+                imageInfos.at(binding).sampler = samplers.at(binding)->GetSampler();
+                write.pImageInfo = &imageInfos.at(binding);
                 break;
             default:
                 break;
         }
+        writesVector.emplace_back(write);
     }
 
-    descriptorSet.getDevice().updateDescriptorSets(writes, {});
+    descriptorSet.getDevice().updateDescriptorSets(writesVector, {});
 }
 
 void Binder::Update(const BindSet::Ref& bindSet) {
     Update(bindSet->GetDescriptorSet());
 }
 
-void Binder::addBufferWrite(vk::WriteDescriptorSet writeInfo, vk::DescriptorBufferInfo bufferInfo) {
-    writes.emplace_back(writeInfo);
-    bufferInfos.emplace_back(bufferInfo);
-    writeIndexToInfoIndex.emplace_back(bufferInfos.size() - 1);
+void Binder::addBufferWrite(vk::WriteDescriptorSet writeInfo, vk::DescriptorBufferInfo bufferInfo, Buffer::Ref buffer) {
+    writes[writeInfo.dstBinding] = std::move(writeInfo);
+    bufferInfos[writeInfo.dstBinding] = std::move(bufferInfo);
+    buffers[writeInfo.dstBinding] = std::move(buffer);
 }
 
-void Binder::addImageWrite(vk::WriteDescriptorSet writeInfo, vk::DescriptorImageInfo imageInfo) {
-    writes.emplace_back(writeInfo);
-    imageInfos.emplace_back(imageInfo);
-    writeIndexToInfoIndex.emplace_back(imageInfos.size() - 1);
+void Binder::addImageWrite(vk::WriteDescriptorSet writeInfo, vk::DescriptorImageInfo imageInfo, TextureView::Ref textureView, Sampler::Ref sampler) {
+    writes[writeInfo.dstBinding] = std::move(writeInfo);
+    imageInfos[writeInfo.dstBinding] = std::move(imageInfo);
+    if (textureView != nullptr) textureViews[writeInfo.dstBinding] = std::move(textureView);
+    if (sampler != nullptr) samplers[writeInfo.dstBinding] = std::move(sampler);
 }
 
 // BindSet BufferBinder
@@ -88,6 +98,7 @@ BufferBinder::BufferBinder(Binder& binder, uint32_t binding) : binder(binder) {
     writeInfo.dstArrayElement = 0;
     writeInfo.descriptorCount = 1;
     writeInfo.descriptorType = vk::DescriptorType::eUniformBuffer;
+    bufferInfo.range = vk::WholeSize;
 }
 
 BufferBinder& BufferBinder::SetBufferType(vk::DescriptorType type) {
@@ -95,8 +106,8 @@ BufferBinder& BufferBinder::SetBufferType(vk::DescriptorType type) {
     return *this;
 }
 
-BufferBinder& BufferBinder::SetBuffer(const vk::raii::Buffer& buffer) {
-    bufferInfo.buffer = buffer;
+BufferBinder& BufferBinder::SetBuffer(Buffer::Ref buffer) {
+    this->buffer = std::move(buffer);
     return *this;
 }
 
@@ -113,46 +124,48 @@ BufferBinder& BufferBinder::SetArrayTarget(uint32_t index, uint32_t count) {
 }
 
 Binder& BufferBinder::FinishBuffer() const {
-    binder.addBufferWrite(writeInfo, bufferInfo);
+    binder.addBufferWrite(writeInfo, bufferInfo, std::move(buffer));
     return binder;
 }
 
 // BindSet ImageBinder
-ImageBinder::ImageBinder(Binder& binder, uint32_t binding) : binder(binder) {
+TextureBinder::TextureBinder(Binder& binder, uint32_t binding) : binder(binder) {
     writeInfo.dstBinding = binding;
     writeInfo.dstArrayElement = 0;
     writeInfo.descriptorCount = 1;
     writeInfo.descriptorType = vk::DescriptorType::eSampledImage;
+
+    imageInfo.imageLayout = vk::ImageLayout::eShaderReadOnlyOptimal;
 }
 
-ImageBinder& ImageBinder::SetImageType(vk::DescriptorType type) {
+TextureBinder& TextureBinder::SetTextureType(vk::DescriptorType type) {
     writeInfo.descriptorType = type;
     return *this;
 }
 
-ImageBinder& ImageBinder::SetImageView(const vk::raii::ImageView& view) {
-    imageInfo.imageView = view;
+TextureBinder& TextureBinder::SetTextureView(TextureView::Ref textureView) {
+    this->textureView = std::move(textureView);
     return *this;
 }
 
-ImageBinder& ImageBinder::SetImageLayout(vk::ImageLayout layout) {
+TextureBinder& TextureBinder::SetImageLayout(vk::ImageLayout layout) {
     imageInfo.imageLayout = layout;
     return *this;
 }
 
-ImageBinder& ImageBinder::SetCombinedSampler(const vk::raii::Sampler& sampler) {
-    imageInfo.sampler = sampler;
+TextureBinder& TextureBinder::SetCombinedSampler(Sampler::Ref sampler) {
+    this->sampler = std::move(sampler);
     return *this;
 }
 
-ImageBinder& ImageBinder::SetArrayTarget(uint32_t index, uint32_t count) {
+TextureBinder& TextureBinder::SetArrayTarget(uint32_t index, uint32_t count) {
     writeInfo.dstArrayElement = index;
     writeInfo.descriptorCount = count;
     return *this;
 }
 
-Binder& ImageBinder::FinishImage() const {
-    binder.addImageWrite(writeInfo, imageInfo);
+Binder& TextureBinder::FinishImage() const {
+    binder.addImageWrite(writeInfo, imageInfo, std::move(textureView), std::move(sampler));
     return binder;
 }
 
@@ -164,8 +177,8 @@ SamplerBinder::SamplerBinder(Binder& binder, uint32_t binding) : binder(binder) 
     writeInfo.descriptorType = vk::DescriptorType::eSampler;
 }
 
-SamplerBinder& SamplerBinder::SetSampler(const vk::raii::Sampler& sampler) {
-    imageInfo.sampler = sampler;
+SamplerBinder& SamplerBinder::SetSampler(Sampler::Ref sampler) {
+    this->sampler = std::move(sampler);
     return *this;
 }
 
@@ -176,6 +189,6 @@ SamplerBinder& SamplerBinder::SetArrayTarget(uint32_t index, uint32_t count) {
 }
 
 Binder& SamplerBinder::FinishSampler() const {
-    binder.addImageWrite(writeInfo, imageInfo);
+    binder.addImageWrite(writeInfo, imageInfo, nullptr, std::move(sampler));
     return binder;
 }

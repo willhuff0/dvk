@@ -8,6 +8,7 @@ add_library(dvk)
 
 target_sources(dvk
     PRIVATE
+        src/vma_impl.cpp
         src/Instance.cpp
         src/Surface.cpp
         src/Device.cpp
@@ -64,7 +65,7 @@ target_link_libraries(dvk
         glfw
         Vulkan::Vulkan
         glm::glm
-        VulkanMemoryAllocator-Hpp
+        VulkanMemoryAllocator-Hpp::VulkanMemoryAllocator-Hpp
 )
 
 target_include_directories(dvk

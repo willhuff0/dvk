@@ -23,6 +23,10 @@ const vk::raii::ImageView& TextureView::GetImageView() const {
 
 // TextureView Builder
 TextureView::Builder::Builder(const Device& device, Texture::Ref texture) : device(device), texture(std::move(texture)) {
+#if defined(DVK_ENABLE_DEBUG_LABELS)
+    label = this->texture->GetLabel() + " View";
+#endif
+
     imageViewInfo.viewType = vk::ImageViewType::e2D;
     imageViewInfo.subresourceRange = {
         .aspectMask = vk::ImageAspectFlagBits::eColor,
@@ -63,6 +67,7 @@ TextureView::Builder& TextureView::Builder::SetArrayLayer(uint32_t base, uint32_
 }
 
 TextureView::Ref TextureView::Builder::Build() {
+    imageViewInfo.image = texture->GetImage();
     imageViewInfo.format = texture->GetFormat();
     auto imageView = vk::raii::ImageView(device.GetDevice(), imageViewInfo);
 

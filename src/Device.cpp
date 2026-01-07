@@ -112,7 +112,7 @@ Device::Device(const Instance& instance, const Surface& surface) {
         auto availableExtensions = physicalDevice.enumerateDeviceExtensionProperties();
         std::vector<const char*> extensions(DEVICE_EXTENSIONS);
         if (std::ranges::any_of(availableExtensions, [&](const vk::ExtensionProperties& extension) {
-            return strcmp(extension.extensionName, "VK_KHR_portability_subset");
+            return strcmp(extension.extensionName, "VK_KHR_portability_subset") == 0;
         })) {
             extensions.push_back("VK_KHR_portability_subset");
         }

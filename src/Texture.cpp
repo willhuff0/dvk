@@ -84,8 +84,13 @@ Texture::Builder Texture::Create(const Device& device) {
     return Builder(device);
 }
 
+#if defined(DVK_ENABLE_DEBUG_LABELS)
+Texture::Texture(vma::raii::Image image, vk::Extent3D extent, vk::Format format, std::string label)
+    : image(std::move(image)), extent(extent), format(format), label(std::move(label)) { }
+#else
 Texture::Texture(vma::raii::Image image, vk::Extent3D extent, vk::Format format)
     : image(std::move(image)), extent(extent), format(format) { }
+#endif
 
 const vma::raii::Image& Texture::GetImage() const {
     return image;
@@ -99,7 +104,13 @@ vk::Format Texture::GetFormat() const {
     return format;
 }
 
-void Texture::Write(const CommandEncoder& commandEncoder, void* src, vk::DeviceSize size, uint32_t mipLevel, uint32_t arrayLayer) {
+#if defined(DVK_ENABLE_DEBUG_LABELS)
+const std::string& Texture::GetLabel() const {
+    return label;
+}
+#endif
+
+void Texture::WriteWithStaging(const CommandEncoder& commandEncoder, const void* src, vk::DeviceSize size, uint32_t mipLevel, uint32_t arrayLayer) {
     auto stagingBuffer = Buffer::CreateStagingBuffer(commandEncoder.GetDevice(), size);
     std::memcpy(stagingBuffer->GetMappedData(), src, size);
 
@@ -140,6 +151,10 @@ void Texture::PrepareForDepthAttachment(const vk::raii::CommandBuffer& commandBu
 
 // Texture Builder
 Texture::Builder::Builder(const Device& device) : device(device) {
+    imageInfo.imageType = vk::ImageType::e2D;
+    imageInfo.mipLevels = 1;
+    imageInfo.arrayLayers = 1;
+    imageInfo.samples = vk::SampleCountFlagBits::e1;
     imageInfo.tiling = vk::ImageTiling::eOptimal;
     imageInfo.sharingMode = vk::SharingMode::eExclusive;
     imageInfo.initialLayout = vk::ImageLayout::eUndefined;
@@ -187,8 +202,27 @@ Texture::Builder& Texture::Builder::SetUsage(vk::ImageUsageFlags usage) {
     return *this;
 }
 
-Texture::Builder& Texture::Builder::EnableWrite() {
-    imageInfo.usage |= vk::ImageUsageFlagBits::eTransferSrc;
+Texture::Builder& Texture::Builder::AllowCubeViews(bool cubeViews) {
+    if (imageInfo.arrayLayers < 6) imageInfo.arrayLayers = 6;
+    if (cubeViews) {
+        imageInfo.flags |= vk::ImageCreateFlagBits::eCubeCompatible;
+    } else {
+        imageInfo.flags &= ~vk::ImageCreateFlagBits::eCubeCompatible;
+    }
+    return *this;
+}
+
+Texture::Builder& Texture::Builder::Allow2DArrayViews(bool arrayViews) {
+    if (arrayViews) {
+        imageInfo.flags |= vk::ImageCreateFlagBits::e2DArrayCompatible;
+    } else {
+        imageInfo.flags &= ~vk::ImageCreateFlagBits::e2DArrayCompatible;
+    }
+    return *this;
+}
+
+Texture::Builder& Texture::Builder::EnableWriteWithStaging() {
+    imageInfo.usage |= vk::ImageUsageFlagBits::eTransferDst;
     return *this;
 }
 
@@ -199,7 +233,8 @@ Texture::Ref Texture::Builder::Build() const {
 
 #if defined(DVK_ENABLE_DEBUG_LABELS)
     if (!label.empty()) device.GetDevice().setDebugUtilsObjectNameEXT(*image, label);
-#endif
-
+    return std::make_shared<Texture>(std::move(image), imageInfo.extent, imageInfo.format, label);
+#else
     return std::make_shared<Texture>(std::move(image), imageInfo.extent, imageInfo.format);
+#endif
 }

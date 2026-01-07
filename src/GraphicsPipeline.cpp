@@ -30,7 +30,7 @@ GraphicsPipeline::Builder::Builder(const Device& device, PipelineLayout::Ref lay
     rasterizationState.depthClampEnable = vk::False;
     rasterizationState.rasterizerDiscardEnable = vk::False;
     rasterizationState.polygonMode = vk::PolygonMode::eFill;
-    rasterizationState.cullMode = vk::CullModeFlagBits::eBack;
+    rasterizationState.cullMode = vk::CullModeFlagBits::eNone;
     rasterizationState.frontFace = vk::FrontFace::eCounterClockwise;
     rasterizationState.depthBiasEnable = vk::False;
     rasterizationState.depthBiasSlopeFactor = 0.0f;
@@ -46,8 +46,10 @@ GraphicsPipeline::Builder::Builder(const Device& device, PipelineLayout::Ref lay
 
     depthStencilState.depthTestEnable = vk::False;
     depthStencilState.depthWriteEnable = vk::False;
-    depthStencilState.depthCompareOp = vk::CompareOp::eLess;
+    depthStencilState.depthCompareOp = vk::CompareOp::eLessOrEqual;
     depthStencilState.depthBoundsTestEnable = vk::False;
+    depthStencilState.minDepthBounds = 0.0f;
+    depthStencilState.maxDepthBounds = 1.0f;
     depthStencilState.stencilTestEnable = vk::False;
 }
 
@@ -58,13 +60,8 @@ GraphicsPipeline::Builder& GraphicsPipeline::Builder::SetLabel(const std::string
     return *this;
 }
 
-GraphicsPipeline::Builder& GraphicsPipeline::Builder::AddStage(vk::ShaderStageFlagBits stage, const Shader& shader, const char* entry) {
-    shaderStages.emplace_back(vk::PipelineShaderStageCreateInfo {
-        .stage = stage,
-        .module = shader.GetShaderModule(),
-        .pName = entry,
-    });
-    return *this;
+GraphicsPipeline::StageBuilder GraphicsPipeline::Builder::AddStage(vk::ShaderStageFlagBits stage, const Shader& shader, const char* entry) {
+    return StageBuilder(*this, stage, shader, entry);
 }
 
 GraphicsPipeline::Builder& GraphicsPipeline::Builder::SetVertexInput(const std::vector<vk::VertexInputBindingDescription>& bindings, const std::vector<vk::VertexInputAttributeDescription>& attributes) {
@@ -128,9 +125,18 @@ GraphicsPipeline::Builder& GraphicsPipeline::Builder::EnableMultisample(vk::Samp
 
 GraphicsPipeline::Builder& GraphicsPipeline::Builder::EnableDepth(vk::Format format) {
     depthStencilState.depthTestEnable = vk::True;
-    depthStencilState.depthWriteEnable = vk::False;
+    depthStencilState.depthWriteEnable = vk::True;
     depthFormat = format;
     return *this;
+}
+
+void GraphicsPipeline::Builder::addStage(vk::PipelineShaderStageCreateInfo stageInfo, std::unordered_map<uint32_t, std::pair<std::unique_ptr<unsigned char[]>, size_t>> specialization, size_t totalSpecializationMapEntries, size_t specializationDataSize) {
+    shaderStages.emplace_back(stageInfo);
+    this->specializationDataSize += specializationDataSize;
+    this->totalSpecializationMapEntries += totalSpecializationMapEntries;
+    if (!specialization.empty()) {
+        shaderStageSpecializations.emplace(shaderStages.size() - 1, std::move(specialization));
+    }
 }
 
 void GraphicsPipeline::Builder::addAttachment(vk::Format format, vk::PipelineColorBlendAttachmentState colorBlendAttachment) {
@@ -159,6 +165,41 @@ GraphicsPipeline::Ref GraphicsPipeline::Builder::Build() {
         .dynamicStateCount = static_cast<uint32_t>(dynamicStates.size()),
         .pDynamicStates = dynamicStates.data(),
     };
+
+    auto specializationData = std::make_unique<unsigned char[]>(specializationDataSize);
+    std::vector<vk::SpecializationInfo> specializationInfos(shaderStageSpecializations.size());
+    std::vector<vk::SpecializationMapEntry> specializationMapEntries(totalSpecializationMapEntries);
+    size_t specializationInfoIndex = 0;
+    size_t specializationMapEntryIndex = 0;
+    size_t specializationDataOffset = 0;
+    for (auto& [shaderStageIndex, constants] : shaderStageSpecializations) {
+        auto& specializationInfo = specializationInfos[specializationInfoIndex];
+
+        specializationInfo.mapEntryCount = constants.size();
+        specializationInfo.pMapEntries = &specializationMapEntries[specializationMapEntryIndex];
+        specializationInfo.dataSize = specializationDataSize;
+        specializationInfo.pData = specializationData.get();
+
+        for (auto& [constantId, data] : constants) {
+            auto& mapEntry = specializationMapEntries[specializationMapEntryIndex];
+
+            mapEntry.constantID = constantId;
+            mapEntry.offset = specializationDataOffset;
+            mapEntry.size = data.second;
+
+            std::memcpy(specializationData.get() + specializationDataOffset, data.first.get(), data.second);
+
+            specializationMapEntryIndex++;
+            specializationDataOffset += data.second;
+        }
+
+        shaderStages[shaderStageIndex].pSpecializationInfo = &specializationInfos[specializationInfoIndex];
+
+        specializationInfoIndex++;
+    }
+
+    colorBlendState.attachmentCount = static_cast<uint32_t>(colorBlendAttachments.size());
+    colorBlendState.pAttachments = colorBlendAttachments.data();
 
     vk::StructureChain<vk::GraphicsPipelineCreateInfo, vk::PipelineRenderingCreateInfo> pipelineCreateInfoChain = {
         vk::GraphicsPipelineCreateInfo {
@@ -191,8 +232,37 @@ GraphicsPipeline::Ref GraphicsPipeline::Builder::Build() {
     return std::make_shared<GraphicsPipeline>(layout, std::move(pipeline));
 }
 
-// Rasterizer Builder
+// Stage Builder
+GraphicsPipeline::StageBuilder::StageBuilder(Builder& builder, vk::ShaderStageFlagBits stage, const Shader& shader, const char* entry) : builder(builder) {
+    stageInfo.stage = stage;
+    stageInfo.module = shader.GetShaderModule();
+    stageInfo.pName = entry;
+}
 
+GraphicsPipeline::StageBuilder& GraphicsPipeline::StageBuilder::SetConstant(uint32_t id, void* src, size_t size) {
+    auto ptr = std::make_unique<unsigned char[]>(size);
+    std::memcpy(ptr.get(), src, size);
+    if (specialization.contains(id)) {
+        specializationDataSize -= specialization[id].second;
+    } else {
+        totalSpecializationMapEntries++;
+    }
+    specialization[id] = std::make_pair(std::move(ptr), size);
+    specializationDataSize += size;
+    return *this;
+}
+
+GraphicsPipeline::StageBuilder& GraphicsPipeline::StageBuilder::SetConstant(uint32_t id, uint32_t value) {
+    SetConstant(id, &value, sizeof(uint32_t));
+    return *this;
+}
+
+GraphicsPipeline::Builder& GraphicsPipeline::StageBuilder::FinishStage() {
+    builder.addStage(stageInfo, std::move(specialization), totalSpecializationMapEntries, specializationDataSize);
+    return builder;
+}
+
+// Rasterizer Builder
 GraphicsPipeline::RasterizerBuilder::RasterizerBuilder(Builder& builder) : builder(builder) { }
 
 GraphicsPipeline::RasterizerBuilder& GraphicsPipeline::RasterizerBuilder::EnableDepthClamp(bool enabled) {
@@ -292,6 +362,7 @@ GraphicsPipeline::AttachmentBuilder& GraphicsPipeline::AttachmentBuilder::SetCol
 }
 
 GraphicsPipeline::Builder& GraphicsPipeline::AttachmentBuilder::FinishAttachment() const {
+    builder.addAttachment(format, colorBlendAttachment);
     return builder;
 }
 
