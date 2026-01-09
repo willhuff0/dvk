@@ -60,7 +60,7 @@ GraphicsPipeline::Builder& GraphicsPipeline::Builder::SetLabel(const std::string
     return *this;
 }
 
-GraphicsPipeline::StageBuilder GraphicsPipeline::Builder::AddStage(vk::ShaderStageFlagBits stage, const Shader& shader, const char* entry) {
+StageBuilder<GraphicsPipeline::Builder> GraphicsPipeline::Builder::AddStage(vk::ShaderStageFlagBits stage, const Shader& shader, const char* entry) {
     return StageBuilder(*this, stage, shader, entry);
 }
 
@@ -230,36 +230,6 @@ GraphicsPipeline::Ref GraphicsPipeline::Builder::Build() {
 #endif
 
     return std::make_shared<GraphicsPipeline>(layout, std::move(pipeline));
-}
-
-// Stage Builder
-GraphicsPipeline::StageBuilder::StageBuilder(Builder& builder, vk::ShaderStageFlagBits stage, const Shader& shader, const char* entry) : builder(builder) {
-    stageInfo.stage = stage;
-    stageInfo.module = shader.GetShaderModule();
-    stageInfo.pName = entry;
-}
-
-GraphicsPipeline::StageBuilder& GraphicsPipeline::StageBuilder::SetConstant(uint32_t id, void* src, size_t size) {
-    auto ptr = std::make_unique<unsigned char[]>(size);
-    std::memcpy(ptr.get(), src, size);
-    if (specialization.contains(id)) {
-        specializationDataSize -= specialization[id].second;
-    } else {
-        totalSpecializationMapEntries++;
-    }
-    specialization[id] = std::make_pair(std::move(ptr), size);
-    specializationDataSize += size;
-    return *this;
-}
-
-GraphicsPipeline::StageBuilder& GraphicsPipeline::StageBuilder::SetConstant(uint32_t id, uint32_t value) {
-    SetConstant(id, &value, sizeof(uint32_t));
-    return *this;
-}
-
-GraphicsPipeline::Builder& GraphicsPipeline::StageBuilder::FinishStage() {
-    builder.addStage(stageInfo, std::move(specialization), totalSpecializationMapEntries, specializationDataSize);
-    return builder;
 }
 
 // Rasterizer Builder

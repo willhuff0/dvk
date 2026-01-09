@@ -37,6 +37,9 @@ Device::Device(const Instance& instance, const Surface& surface) {
             if (std::ranges::none_of(queueFamilies, [&](const vk::QueueFamilyProperties& queueFamily) {
                 return (queueFamily.queueFlags & vk::QueueFlagBits::eGraphics) != static_cast<vk::QueueFlags>(0);
             })) return true;
+            if (std::ranges::none_of(queueFamilies, [&](const vk::QueueFamilyProperties& queueFamily) {
+                return (queueFamily.queueFlags & vk::QueueFlagBits::eCompute) != static_cast<vk::QueueFlags>(0);
+            })) return true;
 
             auto extensions = potentialPhysicalDevice.enumerateDeviceExtensionProperties();
             for (const auto& requiredExtension : DEVICE_EXTENSIONS) {
@@ -77,13 +80,14 @@ Device::Device(const Instance& instance, const Surface& surface) {
         std::vector<vk::QueueFamilyProperties> queueFamilies = physicalDevice.getQueueFamilyProperties();
         for (uint32_t i = 0; i < queueFamilies.size(); i++) {
             if (!(queueFamilies[i].queueFlags & vk::QueueFlagBits::eGraphics)) continue;
+            if (!(queueFamilies[i].queueFlags & vk::QueueFlagBits::eCompute)) continue;
             if (!physicalDevice.getSurfaceSupportKHR(i, *surface.GetSurface())) continue;
 
             queueFamilyIndex = i;
             break;
         }
         if (queueFamilyIndex == ~0) {
-            throw std::runtime_error("Failed to find a queue supporting both graphics and presentation!");
+            throw std::runtime_error("Failed to find a queue supporting all of graphics, compute, and presentation!");
         }
 
         vk::StructureChain<

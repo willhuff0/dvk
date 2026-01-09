@@ -24,6 +24,7 @@ target_sources(dvk
         src/Sampler.cpp
         src/BindPool.cpp
         src/BindSet.cpp
+        src/ComputePipeline.cpp
     PUBLIC
         FILE_SET HEADERS
         BASE_DIRS include
@@ -44,6 +45,8 @@ target_sources(dvk
             include/dvk/Sampler.hpp
             include/dvk/BindPool.hpp
             include/dvk/BindSet.hpp
+            include/dvk/ComputePipeline.hpp
+            include/dvk/PipelineCommon.hpp
 )
 
 find_package(glfw3 REQUIRED)

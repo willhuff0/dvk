@@ -164,7 +164,7 @@ TextureBinder& TextureBinder::SetArrayTarget(uint32_t index, uint32_t count) {
     return *this;
 }
 
-Binder& TextureBinder::FinishImage() const {
+Binder& TextureBinder::FinishTexture() const {
     binder.addImageWrite(writeInfo, imageInfo, std::move(textureView), std::move(sampler));
     return binder;
 }

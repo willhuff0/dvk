@@ -93,7 +93,7 @@ namespace dvk {
         TextureBinder& SetCombinedSampler(Sampler::Ref sampler);
         TextureBinder& SetArrayTarget(uint32_t index, uint32_t count);
 
-        Binder& FinishImage() const;
+        Binder& FinishTexture() const;
 
     private:
         Binder& binder;
