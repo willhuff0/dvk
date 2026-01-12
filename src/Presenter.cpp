@@ -21,9 +21,9 @@ static vk::Extent2D chooseSwapChainExtent(const vk::SurfaceCapabilitiesKHR& capa
 
 static vk::SurfaceFormatKHR chooseSwapChainSurfaceFormat(const std::vector<vk::SurfaceFormatKHR>& availableFormats) {
     for (const auto& availableFormat : availableFormats) {
-        if (availableFormat.format == vk::Format::eB8G8R8A8Srgb && availableFormat.colorSpace == vk::ColorSpaceKHR::eSrgbNonlinear) {
-            return availableFormat;
-        }
+        if (availableFormat.format == vk::Format::eR8G8B8A8Srgb) continue;
+        if (availableFormat.format == vk::Format::eB8G8R8A8Srgb) continue;
+        return availableFormat;
     }
 
     return availableFormats[0];
