@@ -55,6 +55,18 @@ static void transitionImageLayout(const vk::raii::CommandBuffer& commandBuffer, 
 
         sourceStage = vk::PipelineStageFlagBits::eFragmentShader;
         destinationStage = vk::PipelineStageFlagBits::eColorAttachmentOutput;
+    } else if (from == vk::ImageLayout::eUndefined && to == vk::ImageLayout::eGeneral) {
+        barrier.srcAccessMask = {};
+        barrier.dstAccessMask = vk::AccessFlagBits::eShaderRead | vk::AccessFlagBits::eShaderWrite;
+
+        sourceStage = vk::PipelineStageFlagBits::eTopOfPipe;
+        destinationStage = vk::PipelineStageFlagBits::eComputeShader;
+    } else if (from == vk::ImageLayout::eGeneral && to == vk::ImageLayout::eShaderReadOnlyOptimal) {
+        barrier.srcAccessMask = vk::AccessFlagBits::eShaderRead | vk::AccessFlagBits::eShaderWrite;
+        barrier.dstAccessMask = vk::AccessFlagBits::eShaderRead;
+
+        sourceStage = vk::PipelineStageFlagBits::eComputeShader;
+        destinationStage = vk::PipelineStageFlagBits::eFragmentShader;
     } else {
         throw std::invalid_argument("Unsupported layout transition!");
     }
