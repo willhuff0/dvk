@@ -17,6 +17,7 @@ namespace dvk {
         StageBuilder& SetConstant(uint32_t id, const void* src, size_t size);
         template<class T>
         StageBuilder& SetConstant(uint32_t id, T value);
+        StageBuilder& SetConstant(uint32_t id, bool value);
 
         Builder& FinishStage();
 
@@ -52,7 +53,15 @@ namespace dvk {
     template<class Builder>
     template<class T>
     StageBuilder<Builder>& StageBuilder<Builder>::SetConstant(uint32_t id, T value) {
+        static_assert(!std::same_as<T, bool>);
         SetConstant(id, &value, sizeof(T));
+        return *this;
+    }
+
+    template<class Builder>
+    StageBuilder<Builder>& StageBuilder<Builder>::SetConstant(uint32_t id, bool value) {
+        vk::Bool32 vkValue = value ? vk::True : vk::False;
+        SetConstant(id, &vkValue, sizeof(vk::Bool32));
         return *this;
     }
 
