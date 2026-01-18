@@ -10,6 +10,7 @@ namespace dvk {
     class Device {
     public:
         Device(const Instance& instance, const Surface& surface);
+        ~Device();
 
         [[nodiscard]] const vk::raii::PhysicalDevice& GetPhysicalDevice() const;
         [[nodiscard]] const vk::raii::Device& GetDevice() const;

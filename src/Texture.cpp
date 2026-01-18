@@ -66,7 +66,13 @@ static void transitionImageLayout(const vk::raii::CommandBuffer& commandBuffer, 
         barrier.dstAccessMask = vk::AccessFlagBits::eShaderRead;
 
         sourceStage = vk::PipelineStageFlagBits::eComputeShader;
-        destinationStage = vk::PipelineStageFlagBits::eFragmentShader;
+        destinationStage = vk::PipelineStageFlagBits::eVertexShader | vk::PipelineStageFlagBits::eFragmentShader;
+    } else if (from == vk::ImageLayout::eShaderReadOnlyOptimal && to == vk::ImageLayout::eGeneral) {
+        barrier.srcAccessMask = vk::AccessFlagBits::eShaderRead;
+        barrier.dstAccessMask = vk::AccessFlagBits::eShaderRead | vk::AccessFlagBits::eShaderWrite;
+
+        sourceStage = vk::PipelineStageFlagBits::eVertexShader | vk::PipelineStageFlagBits::eFragmentShader;
+        destinationStage = vk::PipelineStageFlagBits::eComputeShader;
     } else {
         throw std::invalid_argument("Unsupported layout transition!");
     }
@@ -126,7 +132,7 @@ void Texture::WriteWithStaging(const CommandEncoder& commandEncoder, const void*
     auto stagingBuffer = Buffer::CreateStagingBuffer(commandEncoder.GetDevice(), size);
     std::memcpy(stagingBuffer->GetMappedData(), src, size);
 
-    commandEncoder.ExecuteOneTime([&](const auto& commandBuffer) {
+    commandEncoder.ExecuteAndWait([&](const auto& commandBuffer) {
         transitionImageLayout(commandBuffer, image, vk::ImageLayout::eUndefined, vk::ImageLayout::eTransferDstOptimal);
         copyBufferToImage(commandBuffer, stagingBuffer->GetBuffer(), image, extent, mipLevel, arrayLayer);
         transitionImageLayout(commandBuffer, image, vk::ImageLayout::eTransferDstOptimal, vk::ImageLayout::eShaderReadOnlyOptimal);

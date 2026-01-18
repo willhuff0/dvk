@@ -145,6 +145,10 @@ Device::Device(const Instance& instance, const Surface& surface) {
     }
 }
 
+Device::~Device() {
+    queue.waitIdle();
+}
+
 const vk::raii::PhysicalDevice& Device::GetPhysicalDevice() const {
     return physicalDevice;
 }

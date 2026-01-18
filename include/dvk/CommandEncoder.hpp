@@ -19,7 +19,7 @@ namespace dvk {
         [[nodiscard]] std::tuple<uint32_t, const vk::raii::CommandBuffer&> GetNextFrame();
         void SubmitFrame(uint32_t frameIndex, const vk::raii::Semaphore& willSignalOnRenderFinished) const;
 
-        void ExecuteOneTime(const std::function<void(const vk::raii::CommandBuffer&)>& func) const;
+        void ExecuteAndWait(const std::function<void(const vk::raii::CommandBuffer&)>& func) const;
 
     private:
         const Device& device;
@@ -33,5 +33,19 @@ namespace dvk {
         std::vector<vk::raii::Fence> frameFences;
 
         vk::raii::CommandPool oneTimeSubmitCommandPool = nullptr;
+    };
+
+    class SyncExecution {
+
+    };
+
+    class SynchronizedExecutionBuilder {
+    public:
+        SynchronizedExecutionBuilder& AddPrerequisite();
+
+        SynchronizedExecutionBuilder& Execute(const std::function<void(const vk::raii::CommandBuffer&)>& func);
+
+    private:
+
     };
 }

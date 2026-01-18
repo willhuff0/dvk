@@ -54,7 +54,7 @@ namespace dvk {
             EntryBuilder& SetCount(uint32_t count);
             EntryBuilder& SetStage(vk::ShaderStageFlags stage);
 
-            Builder& FinishEntry() const;
+            Builder& FinishEntry(uint32_t repeat = 1) const;
 
         private:
             Builder& builder;

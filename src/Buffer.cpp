@@ -65,7 +65,7 @@ void Buffer::WriteWithStaging(const CommandEncoder& commandEncoder, const void* 
     auto stagingBuffer = Buffer::CreateStagingBuffer(commandEncoder.GetDevice(), size_);
     std::memcpy(stagingBuffer->GetMappedData(), src, size_);
 
-    commandEncoder.ExecuteOneTime([&](const auto& commandBuffer) {
+    commandEncoder.ExecuteAndWait([&](const auto& commandBuffer) {
         commandBuffer.copyBuffer(stagingBuffer->GetBuffer(), buffer, vk::BufferCopy(0, offset, size_));
     });
 }

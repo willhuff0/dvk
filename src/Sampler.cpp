@@ -26,12 +26,12 @@ Sampler::Builder::Builder(const Device& device) : device(device) {
     samplerInfo.addressModeW = vk::SamplerAddressMode::eRepeat;
     samplerInfo.mipLodBias = 0.0f;
     samplerInfo.anisotropyEnable = vk::False;
-    samplerInfo.maxAnisotropy = 0.0f;
+    samplerInfo.maxAnisotropy = 1.0f;
     samplerInfo.compareEnable = vk::False;
     samplerInfo.compareOp = vk::CompareOp::eAlways;
     samplerInfo.minLod = 0.0f;
-    samplerInfo.maxLod = 0.0f;
-    samplerInfo.borderColor = vk::BorderColor::eIntOpaqueBlack;
+    samplerInfo.maxLod = 32.0f;
+    samplerInfo.borderColor = vk::BorderColor::eFloatTransparentBlack;
     samplerInfo.unnormalizedCoordinates = vk::False;
 }
 

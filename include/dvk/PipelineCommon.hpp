@@ -7,7 +7,6 @@
 #include <memory>
 #include <unordered_map>
 #include <utility>
-#include <string>
 
 namespace dvk {
     template<class Builder>
@@ -15,8 +14,9 @@ namespace dvk {
     public:
         StageBuilder(Builder& builder, vk::ShaderStageFlagBits stage, const Shader& shader, const char* entry);
 
-        StageBuilder& SetConstant(uint32_t id, void* src, size_t size);
-        StageBuilder& SetConstant(uint32_t id, uint32_t value);
+        StageBuilder& SetConstant(uint32_t id, const void* src, size_t size);
+        template<class T>
+        StageBuilder& SetConstant(uint32_t id, T value);
 
         Builder& FinishStage();
 
@@ -36,7 +36,7 @@ namespace dvk {
     }
 
     template<class Builder>
-    StageBuilder<Builder>& StageBuilder<Builder>::SetConstant(uint32_t id, void* src, size_t size) {
+    StageBuilder<Builder>& StageBuilder<Builder>::SetConstant(uint32_t id, const void* src, size_t size) {
         auto ptr = std::make_unique<unsigned char[]>(size);
         std::memcpy(ptr.get(), src, size);
         if (specialization.contains(id)) {
@@ -50,8 +50,9 @@ namespace dvk {
     }
 
     template<class Builder>
-    StageBuilder<Builder>& StageBuilder<Builder>::SetConstant(uint32_t id, uint32_t value) {
-        SetConstant(id, &value, sizeof(uint32_t));
+    template<class T>
+    StageBuilder<Builder>& StageBuilder<Builder>::SetConstant(uint32_t id, T value) {
+        SetConstant(id, &value, sizeof(T));
         return *this;
     }
 

@@ -68,7 +68,11 @@ BindSetLayout::EntryBuilder& BindSetLayout::EntryBuilder::SetStage(vk::ShaderSta
     return *this;
 }
 
-BindSetLayout::Builder& BindSetLayout::EntryBuilder::FinishEntry() const {
-    builder.addBinding(binding);
+BindSetLayout::Builder& BindSetLayout::EntryBuilder::FinishEntry(uint32_t repeat) const {
+    for (uint32_t i = 0; i < repeat; i++) {
+        vk::DescriptorSetLayoutBinding bindingClone = binding;
+        bindingClone.binding += i;
+        builder.addBinding(std::move(bindingClone));
+    }
     return builder;
 }

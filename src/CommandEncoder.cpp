@@ -68,7 +68,7 @@ void CommandEncoder::SubmitFrame(uint32_t frameIndex, const vk::raii::Semaphore&
     device.GetQueue().submit(submitInfo, *frameFences[frameIndex]);
 }
 
-void CommandEncoder::ExecuteOneTime(const std::function<void(const vk::raii::CommandBuffer&)>& func) const {
+void CommandEncoder::ExecuteAndWait(const std::function<void(const vk::raii::CommandBuffer&)>& func) const {
     auto commandBuffer = std::move(vk::raii::CommandBuffers(device.GetDevice(), {
         .commandPool = oneTimeSubmitCommandPool,
         .level = vk::CommandBufferLevel::ePrimary,
