@@ -52,13 +52,16 @@ Device::Device(const Instance& instance, const Surface& surface) {
                 vk::PhysicalDeviceFeatures2,
                 vk::PhysicalDeviceVulkan11Features,
                 vk::PhysicalDeviceVulkan13Features,
-                vk::PhysicalDeviceExtendedDynamicStateFeaturesEXT
+                vk::PhysicalDeviceExtendedDynamicStateFeaturesEXT,
+                vk::PhysicalDeviceDescriptorIndexingFeatures
             >();
             if (!features.get<vk::PhysicalDeviceFeatures2>().features.samplerAnisotropy) return true;
             if (!features.get<vk::PhysicalDeviceVulkan11Features>().shaderDrawParameters) return true;
             if (!features.get<vk::PhysicalDeviceVulkan13Features>().synchronization2) return true;
             if (!features.get<vk::PhysicalDeviceVulkan13Features>().dynamicRendering) return true;
             if (!features.get<vk::PhysicalDeviceExtendedDynamicStateFeaturesEXT>().extendedDynamicState) return true;
+            if (!features.get<vk::PhysicalDeviceDescriptorIndexingFeatures>().shaderSampledImageArrayNonUniformIndexing) return true;
+            if (!features.get<vk::PhysicalDeviceDescriptorIndexingFeatures>().runtimeDescriptorArray) return true;
 
             return false;
         });
@@ -94,7 +97,8 @@ Device::Device(const Instance& instance, const Surface& surface) {
             vk::PhysicalDeviceFeatures2,
             vk::PhysicalDeviceVulkan11Features,
             vk::PhysicalDeviceVulkan13Features,
-            vk::PhysicalDeviceExtendedDynamicStateFeaturesEXT
+            vk::PhysicalDeviceExtendedDynamicStateFeaturesEXT,
+            vk::PhysicalDeviceDescriptorIndexingFeatures
         > featureChain = {
             {
                 .features = {
@@ -110,6 +114,10 @@ Device::Device(const Instance& instance, const Surface& surface) {
             },
             {
                 .extendedDynamicState = true,
+            },
+            {
+                .shaderSampledImageArrayNonUniformIndexing = true,
+                .runtimeDescriptorArray = true,
             },
         };
 

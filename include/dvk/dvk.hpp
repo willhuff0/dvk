@@ -9,6 +9,7 @@
 #include "dvk/PipelineLayout.hpp"
 #include "dvk/GraphicsPipeline.hpp"
 #include "dvk/CommandEncoder.hpp"
+#include "dvk/CommandBuffer.hpp"
 #include "dvk/Buffer.hpp"
 #include "dvk/TextureView.hpp"
 #include "dvk/Sampler.hpp"

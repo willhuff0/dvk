@@ -8,6 +8,7 @@
 
 namespace dvk {
     class Device;
+    class CommandBuffer;
 
     class CommandEncoder {
     public:
@@ -16,10 +17,11 @@ namespace dvk {
         [[nodiscard]] const Device& GetDevice() const;
 
         const vk::raii::Semaphore& WaitForNextFrame() const;
-        [[nodiscard]] std::tuple<uint32_t, const vk::raii::CommandBuffer&> GetNextFrame();
+        [[nodiscard]] std::tuple<uint32_t, CommandBuffer&> GetNextFrame();
         void SubmitFrame(uint32_t frameIndex, const vk::raii::Semaphore& willSignalOnRenderFinished) const;
 
-        void ExecuteAndWait(const std::function<void(const vk::raii::CommandBuffer&)>& func) const;
+        void Execute(const std::function<void(CommandBuffer&)>& func) const;
+        void ExecuteAndWait(const std::function<void(CommandBuffer&)>& func) const;
 
     private:
         const Device& device;
@@ -28,24 +30,10 @@ namespace dvk {
         uint32_t nextFrameIndex = 0;
 
         vk::raii::CommandPool frameCommandPool = nullptr;
-        std::vector<vk::raii::CommandBuffer> frameCommandBuffers;
+        std::vector<CommandBuffer> frameCommandBuffers;
         std::vector<vk::raii::Semaphore> framePresentCompeteSemaphores;
         std::vector<vk::raii::Fence> frameFences;
 
         vk::raii::CommandPool oneTimeSubmitCommandPool = nullptr;
-    };
-
-    class SyncExecution {
-
-    };
-
-    class SynchronizedExecutionBuilder {
-    public:
-        SynchronizedExecutionBuilder& AddPrerequisite();
-
-        SynchronizedExecutionBuilder& Execute(const std::function<void(const vk::raii::CommandBuffer&)>& func);
-
-    private:
-
     };
 }

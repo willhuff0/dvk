@@ -6,79 +6,9 @@
 
 #include <utility>
 
+#include "dvk/CommandBuffer.hpp"
+
 using namespace dvk;
-
-static void transitionImageLayout(const vk::raii::CommandBuffer& commandBuffer, const vk::raii::Image& image, vk::ImageLayout from, vk::ImageLayout to) {
-    vk::ImageMemoryBarrier barrier {
-        .oldLayout = from,
-        .newLayout = to,
-        .image = image,
-        .subresourceRange = {
-            .aspectMask = vk::ImageAspectFlagBits::eColor,
-            .baseMipLevel = 0,
-            .levelCount = vk::RemainingMipLevels,
-            .baseArrayLayer = 0,
-            .layerCount = vk::RemainingArrayLayers,
-        },
-    };
-
-    vk::PipelineStageFlags sourceStage;
-    vk::PipelineStageFlags destinationStage;
-
-    if (from == vk::ImageLayout::eUndefined && to == vk::ImageLayout::eTransferDstOptimal) {
-        barrier.srcAccessMask = {};
-        barrier.dstAccessMask = vk::AccessFlagBits::eTransferWrite;
-
-        sourceStage = vk::PipelineStageFlagBits::eTopOfPipe;
-        destinationStage = vk::PipelineStageFlagBits::eTransfer;
-    } else if (from == vk::ImageLayout::eTransferDstOptimal && to == vk::ImageLayout::eShaderReadOnlyOptimal) {
-        barrier.srcAccessMask = vk::AccessFlagBits::eTransferWrite;
-        barrier.dstAccessMask = vk::AccessFlagBits::eShaderRead;
-
-        sourceStage = vk::PipelineStageFlagBits::eTransfer;
-        destinationStage = vk::PipelineStageFlagBits::eFragmentShader;
-    } else if (from == vk::ImageLayout::eUndefined && to == vk::ImageLayout::eColorAttachmentOptimal) {
-        barrier.srcAccessMask = {};
-        barrier.dstAccessMask = vk::AccessFlagBits::eColorAttachmentWrite;
-
-        sourceStage = vk::PipelineStageFlagBits::eColorAttachmentOutput;
-        destinationStage = vk::PipelineStageFlagBits::eColorAttachmentOutput;
-    } else if (from == vk::ImageLayout::eColorAttachmentOptimal && to == vk::ImageLayout::eShaderReadOnlyOptimal) {
-        barrier.srcAccessMask = vk::AccessFlagBits::eColorAttachmentWrite;
-        barrier.dstAccessMask = vk::AccessFlagBits::eShaderRead;
-
-        sourceStage = vk::PipelineStageFlagBits::eColorAttachmentOutput;
-        destinationStage = vk::PipelineStageFlagBits::eFragmentShader;
-    } else if (from == vk::ImageLayout::eShaderReadOnlyOptimal && to == vk::ImageLayout::eColorAttachmentOptimal) {
-        barrier.srcAccessMask = vk::AccessFlagBits::eShaderRead;
-        barrier.dstAccessMask = vk::AccessFlagBits::eColorAttachmentWrite;
-
-        sourceStage = vk::PipelineStageFlagBits::eFragmentShader;
-        destinationStage = vk::PipelineStageFlagBits::eColorAttachmentOutput;
-    } else if (from == vk::ImageLayout::eUndefined && to == vk::ImageLayout::eGeneral) {
-        barrier.srcAccessMask = {};
-        barrier.dstAccessMask = vk::AccessFlagBits::eShaderRead | vk::AccessFlagBits::eShaderWrite;
-
-        sourceStage = vk::PipelineStageFlagBits::eTopOfPipe;
-        destinationStage = vk::PipelineStageFlagBits::eComputeShader;
-    } else if (from == vk::ImageLayout::eGeneral && to == vk::ImageLayout::eShaderReadOnlyOptimal) {
-        barrier.srcAccessMask = vk::AccessFlagBits::eShaderRead | vk::AccessFlagBits::eShaderWrite;
-        barrier.dstAccessMask = vk::AccessFlagBits::eShaderRead;
-
-        sourceStage = vk::PipelineStageFlagBits::eComputeShader;
-        destinationStage = vk::PipelineStageFlagBits::eVertexShader | vk::PipelineStageFlagBits::eFragmentShader;
-    } else if (from == vk::ImageLayout::eShaderReadOnlyOptimal && to == vk::ImageLayout::eGeneral) {
-        barrier.srcAccessMask = vk::AccessFlagBits::eShaderRead;
-        barrier.dstAccessMask = vk::AccessFlagBits::eShaderRead | vk::AccessFlagBits::eShaderWrite;
-
-        sourceStage = vk::PipelineStageFlagBits::eVertexShader | vk::PipelineStageFlagBits::eFragmentShader;
-        destinationStage = vk::PipelineStageFlagBits::eComputeShader;
-    } else {
-        throw std::invalid_argument("Unsupported layout transition!");
-    }
-
-    commandBuffer.pipelineBarrier(sourceStage, destinationStage, {}, {}, nullptr, barrier);
-}
 
 static void copyBufferToImage(const vk::raii::CommandBuffer& commandBuffer, const vk::raii::Buffer& buffer, const vk::raii::Image& image, vk::Extent3D extent, uint32_t mipLevel, uint32_t arrayLayer) {
     vk::BufferImageCopy region {
@@ -132,38 +62,22 @@ void Texture::WriteWithStaging(const CommandEncoder& commandEncoder, const void*
     auto stagingBuffer = Buffer::CreateStagingBuffer(commandEncoder.GetDevice(), size);
     std::memcpy(stagingBuffer->GetMappedData(), src, size);
 
-    commandEncoder.ExecuteAndWait([&](const auto& commandBuffer) {
-        transitionImageLayout(commandBuffer, image, vk::ImageLayout::eUndefined, vk::ImageLayout::eTransferDstOptimal);
-        copyBufferToImage(commandBuffer, stagingBuffer->GetBuffer(), image, extent, mipLevel, arrayLayer);
-        transitionImageLayout(commandBuffer, image, vk::ImageLayout::eTransferDstOptimal, vk::ImageLayout::eShaderReadOnlyOptimal);
-    });
-}
-
-void Texture::TransitionLayout(const vk::raii::CommandBuffer& commandBuffer, vk::ImageLayout from, vk::ImageLayout to) const {
-    transitionImageLayout(commandBuffer, image, from, to);
-}
-
-void Texture::PrepareForDepthAttachment(const vk::raii::CommandBuffer& commandBuffer) const {
-    vk::ImageMemoryBarrier2 barrier = {
-        .srcStageMask = vk::PipelineStageFlagBits2::eEarlyFragmentTests | vk::PipelineStageFlagBits2::eLateFragmentTests,
-        .srcAccessMask = vk::AccessFlagBits2::eDepthStencilAttachmentWrite,
-        .dstStageMask = vk::PipelineStageFlagBits2::eEarlyFragmentTests | vk::PipelineStageFlagBits2::eLateFragmentTests,
-        .dstAccessMask = vk::AccessFlagBits2::eDepthStencilAttachmentWrite,
-        .oldLayout = vk::ImageLayout::eUndefined,
-        .newLayout = vk::ImageLayout::eDepthAttachmentOptimal,
-        .image = image,
-        .subresourceRange = {
-            .aspectMask = vk::ImageAspectFlagBits::eDepth,
-            .baseMipLevel = 0,
-            .levelCount = 1,
-            .baseArrayLayer = 0,
-            .layerCount = 1,
-        },
-    };
-    commandBuffer.pipelineBarrier2({
-        .dependencyFlags = {},
-        .imageMemoryBarrierCount = 1,
-        .pImageMemoryBarriers = &barrier,
+    commandEncoder.ExecuteAndWait([&](CommandBuffer& commandBuffer) {
+        commandBuffer.InsertBarriers()
+            .AddImageBarrier()
+                .SetImage(image)
+                .SetLayout(vk::ImageLayout::eUndefined, vk::ImageLayout::eTransferDstOptimal)
+                .InferStagesAndAccess()
+                .FinishImageBarrier()
+            .FinishBarriers();
+        copyBufferToImage(commandBuffer.GetCommandBuffer(), stagingBuffer->GetBuffer(), image, extent, mipLevel, arrayLayer);
+        commandBuffer.InsertBarriers()
+            .AddImageBarrier()
+                .SetImage(image)
+                .SetLayout(vk::ImageLayout::eTransferDstOptimal, vk::ImageLayout::eShaderReadOnlyOptimal)
+                .InferStagesAndAccess()
+                .FinishImageBarrier()
+            .FinishBarriers();
     });
 }
 

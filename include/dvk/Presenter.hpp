@@ -25,8 +25,8 @@ namespace dvk {
         [[nodiscard]] vk::Extent2D GetExtent() const;
 
         [[nodiscard]] std::tuple<PresenterResult, uint32_t, const vk::raii::ImageView&, const vk::raii::Semaphore&> GetNextImage(const vk::raii::Semaphore& willSignalOnImageReady) const;
-        void PrepareImageForRendering(const vk::raii::CommandBuffer& commandBuffer, uint32_t imageIndex) const;
-        void PrepareImageForPresentation(const vk::raii::CommandBuffer& commandBuffer, uint32_t imageIndex) const;
+        void PrepareImageForRendering(CommandBuffer& commandBuffer, uint32_t imageIndex) const;
+        void PrepareImageForPresentation(CommandBuffer& commandBuffer, uint32_t imageIndex) const;
         [[nodiscard]] PresenterResult Present(uint32_t imageIndex) const;
 
     private:

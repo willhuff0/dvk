@@ -1,5 +1,6 @@
 #include <dvk/Buffer.hpp>
 #include "dvk/CommandEncoder.hpp"
+#include "dvk/CommandBuffer.hpp"
 
 #include <utility>
 
@@ -65,8 +66,8 @@ void Buffer::WriteWithStaging(const CommandEncoder& commandEncoder, const void* 
     auto stagingBuffer = Buffer::CreateStagingBuffer(commandEncoder.GetDevice(), size_);
     std::memcpy(stagingBuffer->GetMappedData(), src, size_);
 
-    commandEncoder.ExecuteAndWait([&](const auto& commandBuffer) {
-        commandBuffer.copyBuffer(stagingBuffer->GetBuffer(), buffer, vk::BufferCopy(0, offset, size_));
+    commandEncoder.ExecuteAndWait([&](CommandBuffer& commandBuffer) {
+        commandBuffer.GetCommandBuffer().copyBuffer(stagingBuffer->GetBuffer(), buffer, vk::BufferCopy(0, offset, size_));
     });
 }
 

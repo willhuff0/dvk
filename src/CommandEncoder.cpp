@@ -1,5 +1,6 @@
 #include <dvk/CommandEncoder.hpp>
 #include "dvk/Device.hpp"
+#include "dvk/CommandBuffer.hpp"
 
 #include <stdexcept>
 
@@ -17,12 +18,13 @@ CommandEncoder::CommandEncoder(const Device& device, uint32_t framesInFlight)
         .queueFamilyIndex = device.GetQueueFamilyIndex(),
     });
 
-    frameCommandBuffers = vk::raii::CommandBuffers(device.GetDevice(), {
+    auto frameCommandBuffers_ = vk::raii::CommandBuffers(device.GetDevice(), {
         .commandPool = frameCommandPool,
         .level = vk::CommandBufferLevel::ePrimary,
         .commandBufferCount = framesInFlight,
     });
     for (uint32_t i = 0; i < framesInFlight; i++) {
+        frameCommandBuffers.emplace_back(frameCommandBuffers_[i]);
         framePresentCompeteSemaphores.emplace_back(device.GetDevice(), vk::SemaphoreCreateInfo());
         frameFences.emplace_back(device.GetDevice(), vk::FenceCreateInfo {
             .flags = vk::FenceCreateFlagBits::eSignaled,
@@ -41,19 +43,19 @@ const vk::raii::Semaphore& CommandEncoder::WaitForNextFrame() const {
     return framePresentCompeteSemaphores[nextFrameIndex];
 }
 
-std::tuple<uint32_t, const vk::raii::CommandBuffer&> CommandEncoder::GetNextFrame() {
+std::tuple<uint32_t, CommandBuffer&> CommandEncoder::GetNextFrame() {
     uint32_t frameIndex = nextFrameIndex;
 
     device.GetDevice().resetFences(*frameFences[frameIndex]);
-    frameCommandBuffers[frameIndex].reset();
-    frameCommandBuffers[frameIndex].begin({});
+    frameCommandBuffers[frameIndex].GetCommandBuffer().reset();
+    frameCommandBuffers[frameIndex].GetCommandBuffer().begin({});
 
     nextFrameIndex = (nextFrameIndex + 1) % framesInFlight;
     return { frameIndex, frameCommandBuffers[frameIndex] };
 }
 
 void CommandEncoder::SubmitFrame(uint32_t frameIndex, const vk::raii::Semaphore& willSignalOnRenderFinished) const {
-    frameCommandBuffers[frameIndex].end();
+    frameCommandBuffers[frameIndex].GetCommandBuffer().end();
 
     vk::PipelineStageFlags waitDestinationStageMask(vk::PipelineStageFlagBits::eColorAttachmentOutput);
     const vk::SubmitInfo submitInfo {
@@ -61,14 +63,14 @@ void CommandEncoder::SubmitFrame(uint32_t frameIndex, const vk::raii::Semaphore&
         .pWaitSemaphores = &*framePresentCompeteSemaphores[frameIndex],
         .pWaitDstStageMask = &waitDestinationStageMask,
         .commandBufferCount = 1,
-        .pCommandBuffers = &*frameCommandBuffers[frameIndex],
+        .pCommandBuffers = &*frameCommandBuffers[frameIndex].GetCommandBuffer(),
         .signalSemaphoreCount = 1,
         .pSignalSemaphores = &*willSignalOnRenderFinished,
     };
     device.GetQueue().submit(submitInfo, *frameFences[frameIndex]);
 }
 
-void CommandEncoder::ExecuteAndWait(const std::function<void(const vk::raii::CommandBuffer&)>& func) const {
+void CommandEncoder::Execute(const std::function<void(CommandBuffer&)>& func) const {
     auto commandBuffer = std::move(vk::raii::CommandBuffers(device.GetDevice(), {
         .commandPool = oneTimeSubmitCommandPool,
         .level = vk::CommandBufferLevel::ePrimary,
@@ -77,11 +79,16 @@ void CommandEncoder::ExecuteAndWait(const std::function<void(const vk::raii::Com
     commandBuffer.begin({
         .flags = vk::CommandBufferUsageFlagBits::eOneTimeSubmit,
     });
-    func(commandBuffer);
+    CommandBuffer commandBuffer_(commandBuffer);
+    func(commandBuffer_);
     commandBuffer.end();
     device.GetQueue().submit(vk::SubmitInfo {
         .commandBufferCount = 1,
         .pCommandBuffers = &*commandBuffer,
     });
+}
+
+void CommandEncoder::ExecuteAndWait(const std::function<void(CommandBuffer&)>& func) const {
+    Execute(func);
     device.GetDevice().waitIdle();
 }

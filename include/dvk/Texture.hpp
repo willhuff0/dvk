@@ -33,9 +33,6 @@ namespace dvk {
 
         void WriteWithStaging(const CommandEncoder& commandEncoder, const void* src, vk::DeviceSize size, uint32_t mipLevel = 0, uint32_t arrayLayer = 0);
 
-        void TransitionLayout(const vk::raii::CommandBuffer& commandBuffer, vk::ImageLayout from, vk::ImageLayout to) const;
-        void PrepareForDepthAttachment(const vk::raii::CommandBuffer& commandBuffer) const;
-
     private:
         vma::raii::Image image;
         vk::Extent3D extent;

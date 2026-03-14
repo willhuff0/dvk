@@ -1,6 +1,7 @@
 #include <dvk/Presenter.hpp>
 #include "dvk/Device.hpp"
 #include "dvk/Surface.hpp"
+#include "dvk/CommandBuffer.hpp"
 
 #include <unordered_set>
 #include <algorithm>
@@ -110,51 +111,25 @@ std::tuple<PresenterResult, uint32_t, const vk::raii::ImageView&, const vk::raii
     return { PresenterResult::Success, imageIndex, swapChainImageViews[imageIndex], renderFinishedSemaphores[imageIndex] };
 }
 
-void Presenter::PrepareImageForRendering(const vk::raii::CommandBuffer& commandBuffer, uint32_t imageIndex) const {
-    vk::ImageMemoryBarrier2 barrier = {
-        .srcStageMask = vk::PipelineStageFlagBits2::eColorAttachmentOutput,
-        .srcAccessMask = {},
-        .dstStageMask = vk::PipelineStageFlagBits2::eColorAttachmentOutput,
-        .dstAccessMask = vk::AccessFlagBits2::eColorAttachmentWrite,
-        .oldLayout = vk::ImageLayout::eUndefined,
-        .newLayout = vk::ImageLayout::eColorAttachmentOptimal,
-        .image = swapChainImages.at(imageIndex),
-        .subresourceRange = {
-            .aspectMask = vk::ImageAspectFlagBits::eColor,
-            .baseMipLevel = 0,
-            .levelCount = 1,
-            .baseArrayLayer = 0,
-            .layerCount = 1,
-        },
-    };
-    commandBuffer.pipelineBarrier2({
-        .dependencyFlags = {},
-        .imageMemoryBarrierCount = 1,
-        .pImageMemoryBarriers = &barrier,
-    });
+void Presenter::PrepareImageForRendering(CommandBuffer& commandBuffer, uint32_t imageIndex) const {
+    commandBuffer.InsertBarriers()
+        .AddImageBarrier()
+            .SetImage(swapChainImages.at(imageIndex))
+            .SetLayout(vk::ImageLayout::eUndefined, vk::ImageLayout::eColorAttachmentOptimal)
+            .SetStages(vk::PipelineStageFlagBits2::eColorAttachmentOutput, vk::PipelineStageFlagBits2::eColorAttachmentOutput)
+            .SetAccess({}, vk::AccessFlagBits2::eColorAttachmentWrite)
+            .FinishImageBarrier()
+        .FinishBarriers();
 }
-void Presenter::PrepareImageForPresentation(const vk::raii::CommandBuffer& commandBuffer, uint32_t imageIndex) const {
-    vk::ImageMemoryBarrier2 barrier = {
-        .srcStageMask = vk::PipelineStageFlagBits2::eColorAttachmentOutput,
-        .srcAccessMask = vk::AccessFlagBits2::eColorAttachmentWrite,
-        .dstStageMask = vk::PipelineStageFlagBits2::eBottomOfPipe,
-        .dstAccessMask = {},
-        .oldLayout = vk::ImageLayout::eColorAttachmentOptimal,
-        .newLayout = vk::ImageLayout::ePresentSrcKHR,
-        .image = swapChainImages.at(imageIndex),
-        .subresourceRange = {
-            .aspectMask = vk::ImageAspectFlagBits::eColor,
-            .baseMipLevel = 0,
-            .levelCount = 1,
-            .baseArrayLayer = 0,
-            .layerCount = 1,
-        },
-    };
-    commandBuffer.pipelineBarrier2({
-        .dependencyFlags = {},
-        .imageMemoryBarrierCount = 1,
-        .pImageMemoryBarriers = &barrier,
-    });
+void Presenter::PrepareImageForPresentation(CommandBuffer& commandBuffer, uint32_t imageIndex) const {
+    commandBuffer.InsertBarriers()
+        .AddImageBarrier()
+            .SetImage(swapChainImages.at(imageIndex))
+            .SetLayout(vk::ImageLayout::eColorAttachmentOptimal, vk::ImageLayout::ePresentSrcKHR)
+            .SetStages(vk::PipelineStageFlagBits2::eColorAttachmentOutput, vk::PipelineStageFlagBits2::eBottomOfPipe)
+            .SetAccess(vk::AccessFlagBits2::eColorAttachmentWrite, {})
+            .FinishImageBarrier()
+        .FinishBarriers();
 }
 
 PresenterResult Presenter::Present(uint32_t imageIndex) const {
