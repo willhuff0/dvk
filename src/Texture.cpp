@@ -78,7 +78,17 @@ void Texture::WriteWithStaging(const CommandEncoder& commandEncoder, const void*
                 .InferStagesAndAccess()
                 .FinishImageBarrier()
             .FinishBarriers();
-    });
+    }, "DVK Texture WriteWithStaging");
+}
+
+void Texture::SimpleLayoutBarrier(CommandBuffer& commandBuffer, vk::ImageLayout from, vk::ImageLayout to) {
+    commandBuffer.InsertBarriers()
+        .AddImageBarrier()
+            .SetImage(image)
+            .SetLayout(from, to)
+            .InferStagesAndAccess()
+            .FinishImageBarrier()
+        .FinishBarriers();
 }
 
 // Texture Builder

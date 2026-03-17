@@ -68,7 +68,7 @@ void Buffer::WriteWithStaging(const CommandEncoder& commandEncoder, const void* 
 
     commandEncoder.ExecuteAndWait([&](CommandBuffer& commandBuffer) {
         commandBuffer.GetCommandBuffer().copyBuffer(stagingBuffer->GetBuffer(), buffer, vk::BufferCopy(0, offset, size_));
-    });
+    }, "DVK Buffer WriteWithStaging");
 }
 
 // Buffer Builder

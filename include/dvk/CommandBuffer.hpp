@@ -130,7 +130,7 @@ namespace dvk {
         public:
             explicit ImageBarrierBuilder(BarrierBuilder& builder);
 
-            ImageBarrierBuilder& SetTexture(const Texture::Ref& texture);
+            ImageBarrierBuilder& SetImage(const Texture::Ref& texture);
             ImageBarrierBuilder& SetImage(const vk::Image& image);
             ImageBarrierBuilder& SetAspect(vk::ImageAspectFlags aspect);
             ImageBarrierBuilder& SetMipLevels(uint32_t base, uint32_t count = 1);
@@ -139,9 +139,9 @@ namespace dvk {
             ImageBarrierBuilder& SetQueues(uint32_t srcQueueFamily, uint32_t dstQueueFamily);
             ImageBarrierBuilder& SetStages(vk::PipelineStageFlags2 src, vk::PipelineStageFlags2 dst);
             ImageBarrierBuilder& SetAccess(vk::AccessFlags2 src, vk::AccessFlags2 dst);
-            ImageBarrierBuilder& InferStages(bool srcAsDst = false);
-            ImageBarrierBuilder& InferAccess(bool srcAsDst = false);
-            ImageBarrierBuilder& InferStagesAndAccess(bool srcAsDst = false);
+            ImageBarrierBuilder& InferStages();
+            ImageBarrierBuilder& InferAccess();
+            ImageBarrierBuilder& InferStagesAndAccess();
 
             [[nodiscard]] BarrierBuilder& FinishImageBarrier() const;
 
@@ -203,7 +203,7 @@ namespace dvk {
 
     template<class T>
     CommandBuffer& CommandBuffer::PushConstant(uint32_t id, vk::ShaderStageFlags stage, const T& value) {
-        commandBuffer.pushConstants(pipelineLayout->GetPipelineLayout(), stage, id, { value });
+        commandBuffer.pushConstants<T>(pipelineLayout->GetPipelineLayout(), stage, id, { value });
         return *this;
     }
 }

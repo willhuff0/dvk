@@ -248,12 +248,20 @@ CommandBuffer::BarrierBuilder& CommandBuffer::BufferBarrierBuilder::FinishBuffer
 }
 
 // ImageBarrier Builder
-static vk::PipelineStageFlags2 inferStageFromLayout(vk::ImageLayout layout) { // TODO: Needs to auto infer when undefined should be treated as the dst layout (when dst layout is color or depth attachment output)
+static bool shouldInferSrcStageFromDstLayout(vk::ImageLayout oldLayout, vk::ImageLayout newLayout) {
+    return oldLayout == vk::ImageLayout::eUndefined
+        && (newLayout == vk::ImageLayout::eColorAttachmentOptimal
+         || newLayout == vk::ImageLayout::eDepthAttachmentOptimal
+         || newLayout == vk::ImageLayout::eStencilAttachmentOptimal
+        );
+}
+static vk::PipelineStageFlags2 inferStageFromLayout(vk::ImageLayout layout) {
     switch (layout) {
         case vk::ImageLayout::eUndefined: return vk::PipelineStageFlagBits2::eTopOfPipe;
         case vk::ImageLayout::eTransferDstOptimal: return vk::PipelineStageFlagBits2::eTransfer;
         case vk::ImageLayout::eColorAttachmentOptimal: return vk::PipelineStageFlagBits2::eColorAttachmentOutput;
         case vk::ImageLayout::eDepthAttachmentOptimal: return vk::PipelineStageFlagBits2::eEarlyFragmentTests | vk::PipelineStageFlagBits2::eLateFragmentTests;
+        case vk::ImageLayout::eStencilAttachmentOptimal: return vk::PipelineStageFlagBits2::eEarlyFragmentTests | vk::PipelineStageFlagBits2::eLateFragmentTests;
         case vk::ImageLayout::eShaderReadOnlyOptimal: return vk::PipelineStageFlagBits2::ePreRasterizationShaders | vk::PipelineStageFlagBits2::eComputeShader | vk::PipelineStageFlagBits2::eFragmentShader;
         case vk::ImageLayout::eGeneral: return vk::PipelineStageFlagBits2::eComputeShader;
         default:
@@ -266,6 +274,7 @@ static vk::AccessFlags2 inferAccessFromLayout(vk::ImageLayout layout) {
         case vk::ImageLayout::eTransferDstOptimal: return vk::AccessFlagBits2::eTransferWrite;
         case vk::ImageLayout::eColorAttachmentOptimal: return vk::AccessFlagBits2::eColorAttachmentWrite;
         case vk::ImageLayout::eDepthAttachmentOptimal: return vk::AccessFlagBits2::eDepthStencilAttachmentWrite;
+        case vk::ImageLayout::eStencilAttachmentOptimal: return vk::AccessFlagBits2::eDepthStencilAttachmentWrite;
         case vk::ImageLayout::eShaderReadOnlyOptimal: return vk::AccessFlagBits2::eShaderRead;
         case vk::ImageLayout::eGeneral: return vk::AccessFlagBits2::eShaderRead | vk::AccessFlagBits2::eShaderWrite;
         default:
@@ -283,7 +292,7 @@ CommandBuffer::ImageBarrierBuilder::ImageBarrierBuilder(BarrierBuilder& builder)
     };
 }
 
-CommandBuffer::ImageBarrierBuilder& CommandBuffer::ImageBarrierBuilder::SetTexture(const Texture::Ref& texture) {
+CommandBuffer::ImageBarrierBuilder& CommandBuffer::ImageBarrierBuilder::SetImage(const Texture::Ref& texture) {
     imageBarrier.image = texture->GetImage();
     return *this;
 }
@@ -333,21 +342,23 @@ CommandBuffer::ImageBarrierBuilder& CommandBuffer::ImageBarrierBuilder::SetAcces
     return *this;
 }
 
-CommandBuffer::ImageBarrierBuilder& CommandBuffer::ImageBarrierBuilder::InferStages(bool srcAsDst) {
+CommandBuffer::ImageBarrierBuilder& CommandBuffer::ImageBarrierBuilder::InferStages() {
+    bool srcAsDst = shouldInferSrcStageFromDstLayout(imageBarrier.oldLayout, imageBarrier.newLayout);
     imageBarrier.srcStageMask = inferStageFromLayout(srcAsDst ? imageBarrier.newLayout : imageBarrier.oldLayout);
     imageBarrier.dstStageMask = inferStageFromLayout(imageBarrier.newLayout);
     return *this;
 }
 
-CommandBuffer::ImageBarrierBuilder& CommandBuffer::ImageBarrierBuilder::InferAccess(bool srcAsDst) {
+CommandBuffer::ImageBarrierBuilder& CommandBuffer::ImageBarrierBuilder::InferAccess() {
+    bool srcAsDst = shouldInferSrcStageFromDstLayout(imageBarrier.oldLayout, imageBarrier.newLayout);
     imageBarrier.srcAccessMask = inferAccessFromLayout(srcAsDst ? imageBarrier.newLayout : imageBarrier.oldLayout);
     imageBarrier.dstAccessMask = inferAccessFromLayout(imageBarrier.newLayout);
     return *this;
 }
 
-CommandBuffer::ImageBarrierBuilder& CommandBuffer::ImageBarrierBuilder::InferStagesAndAccess(bool srcAsDst) {
-    InferStages(srcAsDst);
-    InferAccess(srcAsDst);
+CommandBuffer::ImageBarrierBuilder& CommandBuffer::ImageBarrierBuilder::InferStagesAndAccess() {
+    InferStages();
+    InferAccess();
     return *this;
 }
 
@@ -429,7 +440,7 @@ CommandBuffer& CommandBuffer::RenderingBuilder::FinishBeginRendering() {
         .renderArea = areaInfo.value(),
         .layerCount = 1,
         .viewMask = 0,
-        .colorAttachmentCount = colorInfos.size(),
+        .colorAttachmentCount = static_cast<uint32_t>(colorInfos.size()),
         .pColorAttachments = colorInfos.data(),
         .pDepthAttachment = depthInfo.has_value() ? &depthInfo.value() : nullptr,
         .pStencilAttachment = stencilInfo.has_value() ? &stencilInfo.value() : nullptr,
