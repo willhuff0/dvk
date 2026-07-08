@@ -12,6 +12,7 @@ const std::vector<const char*> DEVICE_EXTENSIONS = {
     vk::KHRSpirv14ExtensionName,
     vk::KHRSynchronization2ExtensionName,
     vk::KHRCreateRenderpass2ExtensionName,
+    vk::KHRFragmentShaderBarycentricExtensionName,
 };
 
 static int getPhysicalDeviceTypeScore(vk::PhysicalDeviceType physicalDeviceType) {

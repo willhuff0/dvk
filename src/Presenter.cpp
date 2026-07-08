@@ -72,7 +72,7 @@ void Presenter::Resize(const Surface& surface, vk::Extent2D surfaceSize) {
         .compositeAlpha = vk::CompositeAlphaFlagBitsKHR::eOpaque,
         .presentMode = presentMode,
         .clipped = true,
-        .oldSwapchain = nullptr,
+        .oldSwapchain = *swapChain != nullptr ? *swapChain : nullptr,
     });
     swapChainImages = swapChain.getImages();
     imageFormat = format;
