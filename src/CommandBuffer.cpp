@@ -19,6 +19,11 @@ CommandBuffer::BarrierBuilder CommandBuffer::InsertBarriers() {
     return BarrierBuilder(*this);
 }
 
+CommandBuffer& CommandBuffer::FillBuffer(const Buffer::Ref& buffer, uint32_t data, vk::DeviceSize offset, vk::DeviceSize length) {
+    commandBuffer.fillBuffer(buffer->GetBuffer(), offset, length, data);
+    return *this;
+}
+
 CommandBuffer::RenderingBuilder CommandBuffer::BeginRendering() {
     return RenderingBuilder(*this);
 }

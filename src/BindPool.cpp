@@ -40,9 +40,14 @@ BindPool::Builder& BindPool::Builder::SetMaxSets(uint32_t count) {
     return *this;
 }
 
+BindPool::Builder& BindPool::Builder::SetFlags(vk::DescriptorPoolCreateFlags flags) {
+    this->flags = flags;
+    return *this;
+}
+
 BindPool::Ref BindPool::Builder::Build() {
     auto descriptorPool = vk::raii::DescriptorPool(device.GetDevice(), {
-        .flags = vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet,
+        .flags = flags | vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet,
         .maxSets = maxSets,
         .poolSizeCount = static_cast<uint32_t>(poolSizes.size()),
         .pPoolSizes = poolSizes.data(),

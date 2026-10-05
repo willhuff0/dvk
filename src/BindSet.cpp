@@ -123,7 +123,7 @@ BufferBinder& BufferBinder::SetArrayTarget(uint32_t index, uint32_t count) {
     return *this;
 }
 
-Binder& BufferBinder::FinishBuffer() const {
+Binder& BufferBinder::FinishBuffer() {
     binder.addBufferWrite(writeInfo, bufferInfo, std::move(buffer));
     return binder;
 }
@@ -164,7 +164,7 @@ TextureBinder& TextureBinder::SetArrayTarget(uint32_t index, uint32_t count) {
     return *this;
 }
 
-Binder& TextureBinder::FinishTexture() const {
+Binder& TextureBinder::FinishTexture() {
     binder.addImageWrite(writeInfo, imageInfo, std::move(textureView), std::move(sampler));
     return binder;
 }
@@ -188,7 +188,7 @@ SamplerBinder& SamplerBinder::SetArrayTarget(uint32_t index, uint32_t count) {
     return *this;
 }
 
-Binder& SamplerBinder::FinishSampler() const {
+Binder& SamplerBinder::FinishSampler() {
     binder.addImageWrite(writeInfo, imageInfo, nullptr, std::move(sampler));
     return binder;
 }

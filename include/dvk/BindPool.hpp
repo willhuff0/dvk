@@ -32,6 +32,7 @@ namespace dvk {
             Builder& SetLabel(const std::string& label);
             Builder& AddEntry(vk::DescriptorType type, uint32_t count);
             Builder& SetMaxSets(uint32_t count);
+            Builder& SetFlags(vk::DescriptorPoolCreateFlags flags);
 
             [[nodiscard]] Ref Build();
 
@@ -39,6 +40,7 @@ namespace dvk {
             const Device& device;
             std::vector<vk::DescriptorPoolSize> poolSizes;
             uint32_t maxSets = 8;
+            vk::DescriptorPoolCreateFlags flags;
 #if defined(DVK_ENABLE_DEBUG_LABELS)
             std::string label;
 #endif

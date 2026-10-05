@@ -52,6 +52,8 @@ namespace dvk {
 
         void Update(const vk::raii::DescriptorSet& descriptorSet);
         void Update(const BindSet::Ref& bindSet);
+        template<size_t N>
+        void Update(const BindSet::Refs<N>& bindSets);
 
     private:
         void addBufferWrite(vk::WriteDescriptorSet writeInfo, vk::DescriptorBufferInfo bufferInfo, Buffer::Ref buffer);
@@ -74,7 +76,7 @@ namespace dvk {
         BufferBinder& SetRange(vk::DeviceSize offset, vk::DeviceSize size);
         BufferBinder& SetArrayTarget(uint32_t index, uint32_t count);
 
-        Binder& FinishBuffer() const;
+        Binder& FinishBuffer();
 
     private:
         Binder& binder;
@@ -93,7 +95,7 @@ namespace dvk {
         TextureBinder& SetCombinedSampler(Sampler::Ref sampler);
         TextureBinder& SetArrayTarget(uint32_t index, uint32_t count);
 
-        Binder& FinishTexture() const;
+        Binder& FinishTexture();
 
     private:
         Binder& binder;
@@ -110,7 +112,7 @@ namespace dvk {
         SamplerBinder& SetSampler(Sampler::Ref sampler);
         SamplerBinder& SetArrayTarget(uint32_t index, uint32_t count);
 
-        Binder& FinishSampler() const;
+        Binder& FinishSampler();
 
     private:
         Binder& binder;
@@ -140,5 +142,12 @@ namespace dvk {
         }
 
         return descriptorSets;
+    }
+
+    template<size_t N>
+    void Binder::Update(const BindSet::Refs<N>& bindSets) {
+        for (size_t i = 0; i < N; i++) {
+            Update(bindSets[i]);
+        }
     }
 }

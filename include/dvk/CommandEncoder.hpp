@@ -1,14 +1,16 @@
 #pragma once
 
+#include "dvk/CommandBuffer.hpp"
+
 #include <vulkan/vulkan_raii.hpp>
 
 #include <vector>
 #include <tuple>
 #include <functional>
+#include <memory>
 
 namespace dvk {
     class Device;
-    class CommandBuffer;
 
     class CommandEncoder {
     public:
@@ -23,16 +25,23 @@ namespace dvk {
         void Execute(const std::function<void(CommandBuffer&)>& func, const std::string& label = "DVK Execute") const;
         void ExecuteAndWait(const std::function<void(CommandBuffer&)>& func, const std::string& label = "DVK ExecuteAndWait") const;
 
+        void DropRefOnceNotInUse(uint32_t frameIndex, std::shared_ptr<void> dvkObject);
+
     private:
+        struct FrameContext {
+            CommandBuffer commandBuffer;
+            vk::raii::Semaphore presentCompleteSemaphore;
+            vk::raii::Fence fence;
+            std::vector<std::shared_ptr<void>> deleteQueue;
+        };
+
         const Device& device;
 
         uint32_t framesInFlight;
         uint32_t nextFrameIndex = 0;
 
         vk::raii::CommandPool frameCommandPool = nullptr;
-        std::vector<CommandBuffer> frameCommandBuffers;
-        std::vector<vk::raii::Semaphore> framePresentCompeteSemaphores;
-        std::vector<vk::raii::Fence> frameFences;
+        std::vector<FrameContext> frameContexts;
 
         vk::raii::CommandPool oneTimeSubmitCommandPool = nullptr;
     };

@@ -29,6 +29,8 @@ namespace dvk {
 
         BarrierBuilder InsertBarriers();
 
+        CommandBuffer& FillBuffer(const Buffer::Ref& buffer, uint32_t data, vk::DeviceSize offset = 0, vk::DeviceSize length = vk::WholeSize);
+
         RenderingBuilder BeginRendering();
         CommandBuffer& EndRendering();
 
