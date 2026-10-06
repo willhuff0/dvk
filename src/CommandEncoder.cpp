@@ -38,9 +38,9 @@ CommandEncoder::CommandEncoder(const Device& device, uint32_t framesInFlight)
             }),
         });
 #if defined(DVK_ENABLE_DEBUG_LABELS)
-        device.GetDevice().setDebugUtilsObjectNameEXT(*frameContext.commandBuffer.GetCommandBuffer(), "DVK Frame " + i);
-        device.GetDevice().setDebugUtilsObjectNameEXT(*frameContext.presentCompleteSemaphore, "DVK Frame " + i);
-        device.GetDevice().setDebugUtilsObjectNameEXT(*frameContext.fence, "DVK Frame " + i);
+        device.GetDevice().setDebugUtilsObjectNameEXT(*frameContext.commandBuffer.GetCommandBuffer(), "DVK Frame " + std::to_string(i));
+        device.GetDevice().setDebugUtilsObjectNameEXT(*frameContext.presentCompleteSemaphore, "DVK Frame " + std::to_string(i));
+        device.GetDevice().setDebugUtilsObjectNameEXT(*frameContext.fence, "DVK Frame " + std::to_string(i));
 #endif
     }
 }

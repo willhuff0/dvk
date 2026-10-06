@@ -107,7 +107,7 @@ vk::Extent2D Presenter::GetExtent() const {
 
 std::tuple<PresenterResult, uint32_t, const vk::raii::ImageView&, const vk::raii::Semaphore&> Presenter::GetNextImage(const vk::raii::Semaphore& willSignalOnImageReady) const {
     auto [result, imageIndex] = swapChain.acquireNextImage(std::numeric_limits<uint64_t>::max(), willSignalOnImageReady, nullptr);
-    if (result == vk::Result::eErrorOutOfDateKHR) return { PresenterResult::Fail_MustResize, ~0, nullptr, nullptr };
+    if (result == vk::Result::eErrorOutOfDateKHR) return { PresenterResult::Fail_MustResize, ~0, vk::raii::ImageView(nullptr), vk::raii::Semaphore(nullptr) };
     return { PresenterResult::Success, imageIndex, swapChainImageViews[imageIndex], renderFinishedSemaphores[imageIndex] };
 }
 
