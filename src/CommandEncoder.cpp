@@ -90,26 +90,6 @@ void CommandEncoder::SubmitFrame(uint32_t frameIndex, const vk::raii::Semaphore&
     device.GetQueue().submit(submitInfo, *frameContext.fence);
 }
 
-void CommandEncoder::Execute(const std::function<void(CommandBuffer&)>& func, const std::string& label) const {
-    auto commandBuffer = CommandBuffer(std::move(vk::raii::CommandBuffers(device.GetDevice(), {
-        .commandPool = oneTimeSubmitCommandPool,
-        .level = vk::CommandBufferLevel::ePrimary,
-        .commandBufferCount = 1,
-    }).front()));
-#if defined(DVK_ENABLE_DEBUG_LABELS)
-    device.GetDevice().setDebugUtilsObjectNameEXT(*commandBuffer.GetCommandBuffer(), label);
-#endif
-    commandBuffer.GetCommandBuffer().begin({
-        .flags = vk::CommandBufferUsageFlagBits::eOneTimeSubmit,
-    });
-    func(commandBuffer);
-    commandBuffer.GetCommandBuffer().end();
-    device.GetQueue().submit(vk::SubmitInfo {
-        .commandBufferCount = 1,
-        .pCommandBuffers = &*commandBuffer.GetCommandBuffer(),
-    });
-}
-
 void CommandEncoder::ExecuteAndWait(const std::function<void(CommandBuffer&)>& func, const std::string& label) const {
     auto commandBuffer = CommandBuffer(std::move(vk::raii::CommandBuffers(device.GetDevice(), {
         .commandPool = oneTimeSubmitCommandPool,

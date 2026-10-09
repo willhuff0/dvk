@@ -52,20 +52,20 @@ Device::Device(const Instance& instance, const Surface& surface) {
             auto features = potentialPhysicalDevice.getFeatures2<
                 vk::PhysicalDeviceFeatures2,
                 vk::PhysicalDeviceVulkan11Features,
+                vk::PhysicalDeviceVulkan12Features,
                 vk::PhysicalDeviceVulkan13Features,
                 vk::PhysicalDeviceExtendedDynamicStateFeaturesEXT,
-                vk::PhysicalDeviceDescriptorIndexingFeatures,
                 vk::PhysicalDeviceFragmentShaderBarycentricFeaturesKHR
             >();
             if (!features.get<vk::PhysicalDeviceFeatures2>().features.samplerAnisotropy) return true;
             if (!features.get<vk::PhysicalDeviceVulkan11Features>().shaderDrawParameters) return true;
+            if (!features.get<vk::PhysicalDeviceVulkan12Features>().drawIndirectCount) return true;
+            if (!features.get<vk::PhysicalDeviceVulkan12Features>().shaderSampledImageArrayNonUniformIndexing) return true;
+            if (!features.get<vk::PhysicalDeviceVulkan12Features>().descriptorBindingSampledImageUpdateAfterBind) return true;
+            if (!features.get<vk::PhysicalDeviceVulkan12Features>().descriptorBindingPartiallyBound) return true;
+            if (!features.get<vk::PhysicalDeviceVulkan12Features>().runtimeDescriptorArray) return true;
             if (!features.get<vk::PhysicalDeviceVulkan13Features>().synchronization2) return true;
             if (!features.get<vk::PhysicalDeviceVulkan13Features>().dynamicRendering) return true;
-            if (!features.get<vk::PhysicalDeviceExtendedDynamicStateFeaturesEXT>().extendedDynamicState) return true;
-            if (!features.get<vk::PhysicalDeviceDescriptorIndexingFeatures>().shaderSampledImageArrayNonUniformIndexing) return true;
-            if (!features.get<vk::PhysicalDeviceDescriptorIndexingFeatures>().descriptorBindingSampledImageUpdateAfterBind) return true;
-            if (!features.get<vk::PhysicalDeviceDescriptorIndexingFeatures>().descriptorBindingPartiallyBound) return true;
-            if (!features.get<vk::PhysicalDeviceDescriptorIndexingFeatures>().runtimeDescriptorArray) return true;
             if (!features.get<vk::PhysicalDeviceFragmentShaderBarycentricFeaturesKHR>().fragmentShaderBarycentric) return true;
 
             return false;
@@ -101,9 +101,8 @@ Device::Device(const Instance& instance, const Surface& surface) {
         vk::StructureChain<
             vk::PhysicalDeviceFeatures2,
             vk::PhysicalDeviceVulkan11Features,
+            vk::PhysicalDeviceVulkan12Features,
             vk::PhysicalDeviceVulkan13Features,
-            vk::PhysicalDeviceExtendedDynamicStateFeaturesEXT,
-            vk::PhysicalDeviceDescriptorIndexingFeatures,
             vk::PhysicalDeviceFragmentShaderBarycentricFeaturesKHR
         > featureChain = {
             {
@@ -115,17 +114,15 @@ Device::Device(const Instance& instance, const Surface& surface) {
                 .shaderDrawParameters = true,
             },
             {
-                .synchronization2 = true,
-                .dynamicRendering = true,
-            },
-            {
-                .extendedDynamicState = true,
-            },
-            {
+                .drawIndirectCount = true,
                 .shaderSampledImageArrayNonUniformIndexing = true,
                 .descriptorBindingSampledImageUpdateAfterBind = true,
                 .descriptorBindingPartiallyBound = true,
                 .runtimeDescriptorArray = true,
+            },
+            {
+                .synchronization2 = true,
+                .dynamicRendering = true,
             },
             {
                 .fragmentShaderBarycentric = true,

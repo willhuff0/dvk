@@ -24,6 +24,10 @@ CommandBuffer& CommandBuffer::FillBuffer(const Buffer::Ref& buffer, uint32_t dat
     return *this;
 }
 
+CommandBuffer::BufferCopyBuilder CommandBuffer::CopyBuffer(const Buffer::Ref& from, const Buffer::Ref& to) {
+    return BufferCopyBuilder(*this, from, to);
+}
+
 CommandBuffer::RenderingBuilder CommandBuffer::BeginRendering() {
     return RenderingBuilder(*this);
 }
@@ -146,6 +150,10 @@ void CommandBuffer::insertBarrier(const vk::DependencyInfo& dependencyInfo) cons
     commandBuffer.pipelineBarrier2(dependencyInfo);
 }
 
+void CommandBuffer::copyBuffer(const vk::raii::Buffer& src, const vk::raii::Buffer& dst, const std::vector<vk::BufferCopy>& regions) {
+    commandBuffer.copyBuffer(src, dst, regions);
+}
+
 void CommandBuffer::beginRendering(const vk::RenderingInfo& renderingInfo) {
     commandBuffer.beginRendering(renderingInfo);
 }
@@ -177,7 +185,7 @@ void CommandBuffer::BarrierBuilder::addImageBarrier(vk::ImageMemoryBarrier2 imag
     imageBarriers.emplace_back(std::move(imageBarrier));
 }
 
-void CommandBuffer::BarrierBuilder::FinishBarriers() const {
+CommandBuffer& CommandBuffer::BarrierBuilder::FinishBarriers() {
     commandBuffer.insertBarrier({
         .memoryBarrierCount = static_cast<uint32_t>(memoryBarriers.size()),
         .pMemoryBarriers = memoryBarriers.data(),
@@ -186,6 +194,7 @@ void CommandBuffer::BarrierBuilder::FinishBarriers() const {
         .imageMemoryBarrierCount = static_cast<uint32_t>(imageBarriers.size()),
         .pImageMemoryBarriers = imageBarriers.data(),
     });
+    return commandBuffer;
 }
 
 // PipelineBarrier Builder
@@ -372,8 +381,37 @@ CommandBuffer::BarrierBuilder& CommandBuffer::ImageBarrierBuilder::FinishImageBa
     return builder;
 }
 
-// Rendering Builder
+// BufferCopy Builder
+CommandBuffer::BufferCopyBuilder::BufferCopyBuilder(CommandBuffer& commandBuffer, Buffer::Ref from, Buffer::Ref to)
+    : commandBuffer(commandBuffer), from(std::move(from)), to(std::move(to)) { }
 
+CommandBuffer::BufferCopyBuilder& CommandBuffer::BufferCopyBuilder::SetBuffers(Buffer::Ref from, Buffer::Ref to) {
+    from = std::move(from);
+    to = std::move(to);
+    return *this;
+}
+CommandBuffer::BufferCopyBuilder& CommandBuffer::BufferCopyBuilder::AddRegion(vk::DeviceSize fromOffset, vk::DeviceSize toOffset, vk::DeviceSize size) {
+    regions.emplace_back(vk::BufferCopy {
+        .srcOffset = fromOffset,
+        .dstOffset = toOffset,
+        .size = size,
+    });
+    return *this;
+}
+
+CommandBuffer& CommandBuffer::BufferCopyBuilder::FinishBufferCopy() {
+    if (regions.empty()) {
+        regions.emplace_back(vk::BufferCopy {
+            .srcOffset = 0,
+            .dstOffset = 0,
+            .size = from->GetSize(),
+        });
+    }
+    commandBuffer.copyBuffer(from->GetBuffer(), to->GetBuffer(), regions);
+    return commandBuffer;
+}
+
+// Rendering Builder
 CommandBuffer::RenderingBuilder::RenderingBuilder(CommandBuffer& commandBuffer) : commandBuffer(commandBuffer) { }
 
 CommandBuffer::RenderingBuilder& CommandBuffer::RenderingBuilder::SetRenderArea(vk::Offset2D offset, vk::Extent2D extent) {

@@ -22,7 +22,6 @@ namespace dvk {
         [[nodiscard]] std::tuple<uint32_t, CommandBuffer&> GetNextFrame();
         void SubmitFrame(uint32_t frameIndex, const vk::raii::Semaphore& willSignalOnRenderFinished) const;
 
-        void Execute(const std::function<void(CommandBuffer&)>& func, const std::string& label = "DVK Execute") const;
         void ExecuteAndWait(const std::function<void(CommandBuffer&)>& func, const std::string& label = "DVK ExecuteAndWait") const;
 
         void DropRefOnceNotInUse(uint32_t frameIndex, std::shared_ptr<void> dvkObject);

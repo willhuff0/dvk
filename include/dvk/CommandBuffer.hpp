@@ -21,6 +21,7 @@ namespace dvk {
         class MemoryBarrierBuilder;
         class BufferBarrierBuilder;
         class ImageBarrierBuilder;
+        class BufferCopyBuilder;
         class RenderingBuilder;
         class RenderingAttachmentBuilder;
         explicit CommandBuffer(vk::raii::CommandBuffer commandBuffer);
@@ -30,6 +31,7 @@ namespace dvk {
         BarrierBuilder InsertBarriers();
 
         CommandBuffer& FillBuffer(const Buffer::Ref& buffer, uint32_t data, vk::DeviceSize offset = 0, vk::DeviceSize length = vk::WholeSize);
+        BufferCopyBuilder CopyBuffer(const Buffer::Ref& from, const Buffer::Ref& to);
 
         RenderingBuilder BeginRendering();
         CommandBuffer& EndRendering();
@@ -65,6 +67,7 @@ namespace dvk {
 
     private:
         void insertBarrier(const vk::DependencyInfo& dependencyInfo) const;
+        void copyBuffer(const vk::raii::Buffer& src, const vk::raii::Buffer& dst, const std::vector<vk::BufferCopy>& regions);
         void beginRendering(const vk::RenderingInfo& renderingInfo);
 
         vk::raii::CommandBuffer commandBuffer;
@@ -83,7 +86,7 @@ namespace dvk {
             BufferBarrierBuilder AddBufferBarrier();
             ImageBarrierBuilder AddImageBarrier();
 
-            void FinishBarriers() const;
+            CommandBuffer& FinishBarriers();
 
         private:
             void addMemoryBarrier(vk::MemoryBarrier2 memoryBarrier);
@@ -150,6 +153,22 @@ namespace dvk {
         private:
             BarrierBuilder& builder;
             vk::ImageMemoryBarrier2 imageBarrier;
+        };
+
+        class BufferCopyBuilder {
+        public:
+            explicit BufferCopyBuilder(CommandBuffer& commandBuffer, Buffer::Ref from, Buffer::Ref to);
+
+            BufferCopyBuilder& SetBuffers(Buffer::Ref src, Buffer::Ref to);
+            BufferCopyBuilder& AddRegion(vk::DeviceSize fromOffset, vk::DeviceSize toOffset, vk::DeviceSize size);
+
+            CommandBuffer& FinishBufferCopy();
+
+        private:
+            CommandBuffer& commandBuffer;
+            Buffer::Ref from;
+            Buffer::Ref to;
+            std::vector<vk::BufferCopy> regions;
         };
 
         class RenderingBuilder {
