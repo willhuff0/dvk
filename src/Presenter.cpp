@@ -38,7 +38,7 @@ static vk::PresentModeKHR chooseSwapChainPresentMode(const std::vector<vk::Prese
 
     // if (presentModes.contains(vk::PresentModeKHR::eFifoLatestReady)) return vk::PresentModeKHR::eFifoLatestReady;
     // if (presentModes.contains(vk::PresentModeKHR::eFifoLatestReadyEXT)) return vk::PresentModeKHR::eFifoLatestReadyEXT;
-    if (presentModes.contains(vk::PresentModeKHR::eMailbox)) return vk::PresentModeKHR::eMailbox;
+    // if (presentModes.contains(vk::PresentModeKHR::eMailbox)) return vk::PresentModeKHR::eMailbox;
     if (presentModes.contains(vk::PresentModeKHR::eFifoRelaxed)) return vk::PresentModeKHR::eFifoRelaxed;
     if (presentModes.contains(vk::PresentModeKHR::eFifo)) return vk::PresentModeKHR::eFifo;
     if (presentModes.contains(vk::PresentModeKHR::eImmediate)) return vk::PresentModeKHR::eImmediate;
@@ -55,7 +55,7 @@ void Presenter::Resize(const Surface& surface, vk::Extent2D surfaceSize) {
     auto [format, colorSpace] = chooseSwapChainSurfaceFormat(device.GetPhysicalDevice().getSurfaceFormatsKHR(surface.GetSurface()));
     auto presentMode = chooseSwapChainPresentMode(device.GetPhysicalDevice().getSurfacePresentModesKHR(surface.GetSurface()));
     extent = chooseSwapChainExtent(surfaceCapabilities, surfaceSize);
-    auto minImageCount = std::max(3u, surfaceCapabilities.minImageCount);
+    minImageCount = std::max(2u, surfaceCapabilities.minImageCount);
     minImageCount = (surfaceCapabilities.maxImageCount > 0 && minImageCount > surfaceCapabilities.maxImageCount) ? surfaceCapabilities.maxImageCount : minImageCount;
 
     swapChain = vk::raii::SwapchainKHR(device.GetDevice(), {
@@ -103,6 +103,14 @@ vk::Format Presenter::GetFormat() const {
 
 vk::Extent2D Presenter::GetExtent() const {
     return extent;
+}
+
+uint32_t Presenter::GetMinImageCount() const {
+    return minImageCount;
+}
+
+uint32_t Presenter::GetSwapChainImageCount() const {
+    return swapChainImages.size();
 }
 
 std::tuple<PresenterResult, uint32_t, const vk::raii::ImageView&, const vk::raii::Semaphore&> Presenter::GetNextImage(const vk::raii::Semaphore& willSignalOnImageReady) const {

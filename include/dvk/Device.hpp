@@ -4,6 +4,8 @@
 #include <vk_mem_alloc_raii.hpp>
 
 namespace dvk {
+    constexpr uint32_t API_VERSION = vk::ApiVersion13;
+
     class Instance;
     class Surface;
 

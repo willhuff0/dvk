@@ -32,7 +32,7 @@ Device::Device(const Instance& instance, const Surface& surface) {
         auto physicalDevices = instance.GetInstance().enumeratePhysicalDevices();
         std::erase_if(physicalDevices, [&](const vk::raii::PhysicalDevice& potentialPhysicalDevice) {
             auto properties = potentialPhysicalDevice.getProperties();
-            if (properties.apiVersion < vk::ApiVersion13) return true;
+            if (properties.apiVersion < API_VERSION) return true;
 
             auto queueFamilies = potentialPhysicalDevice.getQueueFamilyProperties();
             if (std::ranges::none_of(queueFamilies, [&](const vk::QueueFamilyProperties& queueFamily) {
