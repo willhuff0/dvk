@@ -340,6 +340,11 @@ GraphicsPipeline::Builder& GraphicsPipeline::AttachmentBuilder::FinishAttachment
 
 GraphicsPipeline::DepthBuilder::DepthBuilder(Builder& builder) : builder(builder) { }
 
+GraphicsPipeline::DepthBuilder& GraphicsPipeline::DepthBuilder::SetFormat(vk::Format format) {
+    builder.depthFormat = format;
+    return *this;
+}
+
 GraphicsPipeline::DepthBuilder& GraphicsPipeline::DepthBuilder::EnableDepthTest(bool enabled) {
     builder.depthStencilState.depthTestEnable = enabled ? vk::True : vk::False;
     return *this;

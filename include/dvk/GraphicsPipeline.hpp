@@ -140,6 +140,7 @@ namespace dvk {
         public:
             explicit DepthBuilder(Builder& builder);
 
+            DepthBuilder& SetFormat(vk::Format format);
             DepthBuilder& EnableDepthTest(bool enabled = true);
             DepthBuilder& EnableDepthWrite(bool enabled = true);
             DepthBuilder& SetDepthCompare(vk::CompareOp compareOp);
