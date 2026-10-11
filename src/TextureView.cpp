@@ -1,5 +1,4 @@
 #include <dvk/TextureView.hpp>
-#include "dvk/Device.hpp"
 
 #include <utility>
 

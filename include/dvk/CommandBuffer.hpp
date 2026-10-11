@@ -28,6 +28,10 @@ namespace dvk {
 
         [[nodiscard]] const vk::raii::CommandBuffer& GetCommandBuffer() const;
 
+        CommandBuffer& InsertLabel(const std::string& label, glm::vec4 color = glm::vec4(1.0f, 1.0f, 1.0f, 1.0f));
+        CommandBuffer& BeginRegion(const std::string& label, glm::vec4 color = glm::vec4(1.0f, 1.0f, 1.0f, 1.0f));
+        CommandBuffer& EndRegion();
+
         BarrierBuilder InsertBarriers();
 
         CommandBuffer& FillBuffer(const Buffer::Ref& buffer, uint32_t data, vk::DeviceSize offset = 0, vk::DeviceSize length = vk::WholeSize);

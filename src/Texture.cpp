@@ -1,5 +1,4 @@
 #include <dvk/Texture.hpp>
-#include "dvk/Device.hpp"
 #include "dvk/CommandEncoder.hpp"
 
 #include "dvk/Buffer.hpp"

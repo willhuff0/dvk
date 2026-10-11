@@ -1,6 +1,7 @@
 #pragma once
 
 #include <dvk/Config.hpp>
+#include "Device.hpp"
 
 #include <vulkan/vulkan_raii.hpp>
 #include <vk_mem_alloc_raii.hpp>
@@ -17,6 +18,8 @@ namespace dvk {
     public:
         class Builder;
         using Ref = std::shared_ptr<Texture>;
+        template<size_t N>
+        using Refs = std::array<Ref, N>;
 
         static Builder Create(const Device& device);
 #if defined(DVK_ENABLE_DEBUG_LABELS)
@@ -62,6 +65,8 @@ namespace dvk {
             Builder& EnableWriteWithStaging();
 
             [[nodiscard]] Ref Build() const;
+            template<size_t N>
+            [[nodiscard]] Refs<N> Build() const;
 
         private:
             const Device& device;
@@ -71,4 +76,24 @@ namespace dvk {
 #endif
         };
     };
+
+    template<size_t N>
+    Texture::Refs<N> Texture::Builder::Build() const {
+        std::array<Ref, N> textures;
+
+        for (size_t i = 0; i < N; i++) {
+            auto image = vma::raii::Image(device.GetAllocator(), imageInfo, vma::AllocationCreateInfo {
+                .usage = vma::MemoryUsage::eAutoPreferDevice,
+            });
+
+#if defined(DVK_ENABLE_DEBUG_LABELS)
+            if (!label.empty()) device.GetDevice().setDebugUtilsObjectNameEXT(*image, label);
+            textures[i] = std::make_shared<Texture>(std::move(image), imageInfo.extent, imageInfo.format, label);
+#else
+            textures[i] = std::make_shared<Texture>(std::move(image), imageInfo.extent, imageInfo.format);
+#endif
+        }
+
+        return textures;
+    }
 }

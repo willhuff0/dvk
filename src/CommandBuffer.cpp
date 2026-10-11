@@ -15,6 +15,33 @@ const vk::raii::CommandBuffer& CommandBuffer::GetCommandBuffer() const {
     return commandBuffer;
 }
 
+CommandBuffer& CommandBuffer::InsertLabel(const std::string& label, glm::vec4 color) {
+#if defined(DVK_ENABLE_DEBUG_LABELS)
+    std::array colorArray = {color.r, color.g, color.b, color.a};
+    if (!label.empty()) commandBuffer.insertDebugUtilsLabelEXT({
+        .pLabelName = label.c_str(),
+        .color = colorArray,
+    });
+#endif
+    return *this;
+}
+CommandBuffer& CommandBuffer::BeginRegion(const std::string& label, glm::vec4 color) {
+#if defined(DVK_ENABLE_DEBUG_LABELS)
+    std::array colorArray = {color.r, color.g, color.b, color.a};
+    if (!label.empty()) commandBuffer.beginDebugUtilsLabelEXT({
+        .pLabelName = label.c_str(),
+        .color = colorArray,
+    });
+#endif
+    return *this;
+}
+CommandBuffer& CommandBuffer::EndRegion() {
+#if defined(DVK_ENABLE_DEBUG_LABELS)
+    commandBuffer.endDebugUtilsLabelEXT();
+#endif
+    return *this;
+}
+
 CommandBuffer::BarrierBuilder CommandBuffer::InsertBarriers() {
     return BarrierBuilder(*this);
 }

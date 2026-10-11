@@ -2,6 +2,7 @@
 
 #include <dvk/Config.hpp>
 #include "Texture.hpp"
+#include "Device.hpp"
 
 #include <vulkan/vulkan_raii.hpp>
 
@@ -15,6 +16,8 @@ namespace dvk {
     public:
         class Builder;
         using Ref = std::shared_ptr<TextureView>;
+        template<size_t N>
+        using Refs = std::array<Ref, N>;
 
         static Builder Create(const Device& device, Texture::Ref texture);
         explicit TextureView(Texture::Ref texture, vk::raii::ImageView imageView);
