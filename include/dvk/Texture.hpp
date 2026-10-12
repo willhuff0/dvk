@@ -35,7 +35,19 @@ namespace dvk {
         [[nodiscard]] const std::string& GetLabel() const;
 #endif
 
-        void WriteWithStaging(const CommandEncoder& commandEncoder, const void* src, vk::DeviceSize size, uint32_t mipLevel = 0, uint32_t arrayLayer = 0);
+        void WriteWithStaging(
+            const CommandEncoder& commandEncoder,
+            const void* src,
+            vk::DeviceSize size,
+            uint32_t mipLevel = 0,
+            uint32_t arrayLayer = 0);
+
+        void WriteWithStagingAndGenerateMipMaps(
+            const CommandEncoder& commandEncoder,
+            const void* src,
+            vk::DeviceSize size,
+            uint32_t mipMapCount,
+            uint32_t arrayLayer = 0);
 
         void SimpleLayoutBarrier(CommandBuffer& commandBuffer, vk::ImageLayout from, vk::ImageLayout to);
 

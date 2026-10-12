@@ -9,7 +9,14 @@
 
 using namespace dvk;
 
-static void copyBufferToImage(const vk::raii::CommandBuffer& commandBuffer, const vk::raii::Buffer& buffer, const vk::raii::Image& image, vk::Extent3D extent, uint32_t mipLevel, uint32_t arrayLayer) {
+static void copyBufferToImage(
+    const vk::raii::CommandBuffer& commandBuffer,
+    const vk::raii::Buffer& buffer,
+    const vk::raii::Image& image,
+    vk::Extent3D extent,
+    uint32_t mipLevel,
+    uint32_t arrayLayer
+) {
     vk::BufferImageCopy region {
         .bufferOffset = 0,
         .bufferRowLength = 0,
@@ -24,6 +31,50 @@ static void copyBufferToImage(const vk::raii::CommandBuffer& commandBuffer, cons
         .imageExtent = extent,
     };
     commandBuffer.copyBufferToImage(buffer, image, vk::ImageLayout::eTransferDstOptimal, { region });
+}
+
+static void blitImage(
+    const vk::raii::CommandBuffer& commandBuffer,
+    vk::raii::Image& from,
+    vk::raii::Image& to,
+    vk::Extent3D extent,
+    uint32_t fromMipLevel,
+    uint32_t toMipLevel,
+    uint32_t arrayLayer
+) {
+    std::array srcOffsets = {
+        vk::Offset3D {0, 0, 0},
+        vk::Offset3D {static_cast<int32_t>(extent.width >> fromMipLevel), static_cast<int32_t>(extent.height >> fromMipLevel), 1}
+    };
+    std::array dstOffsets = {
+        vk::Offset3D {0, 0, 0},
+        vk::Offset3D {static_cast<int32_t>(extent.width >> toMipLevel), static_cast<int32_t>(extent.height >> toMipLevel), 1}
+    };
+
+    vk::ImageBlit imageBlit {
+        .srcSubresource = {
+            .aspectMask = vk::ImageAspectFlagBits::eColor,
+            .mipLevel = fromMipLevel,
+            .baseArrayLayer = arrayLayer,
+            .layerCount = 1,
+        },
+        .srcOffsets = srcOffsets,
+        .dstSubresource = {
+            .aspectMask = vk::ImageAspectFlagBits::eColor,
+            .mipLevel = toMipLevel,
+            .baseArrayLayer = arrayLayer,
+            .layerCount = 1,
+        },
+        .dstOffsets = dstOffsets,
+    };
+    commandBuffer.blitImage(
+        from,
+        vk::ImageLayout::eTransferSrcOptimal,
+        to,
+        vk::ImageLayout::eTransferDstOptimal,
+        imageBlit,
+        vk::Filter::eLinear
+    );
 }
 
 // Texture
@@ -57,7 +108,13 @@ const std::string& Texture::GetLabel() const {
 }
 #endif
 
-void Texture::WriteWithStaging(const CommandEncoder& commandEncoder, const void* src, vk::DeviceSize size, uint32_t mipLevel, uint32_t arrayLayer) {
+void Texture::WriteWithStaging(
+    const CommandEncoder& commandEncoder,
+    const void* src,
+    vk::DeviceSize size,
+    uint32_t mipLevel,
+    uint32_t arrayLayer
+) {
     auto stagingBuffer = Buffer::CreateStagingBuffer(commandEncoder.GetDevice(), size);
     std::memcpy(stagingBuffer->GetMappedData(), src, size);
 
@@ -67,6 +124,8 @@ void Texture::WriteWithStaging(const CommandEncoder& commandEncoder, const void*
                 .SetImage(image)
                 .SetLayout(vk::ImageLayout::eUndefined, vk::ImageLayout::eTransferDstOptimal)
                 .InferStagesAndAccess()
+                .SetMipLevels(mipLevel)
+                .SetArrayLayers(arrayLayer)
                 .FinishImageBarrier()
             .FinishBarriers();
         copyBufferToImage(commandBuffer.GetCommandBuffer(), stagingBuffer->GetBuffer(), image, extent, mipLevel, arrayLayer);
@@ -75,9 +134,86 @@ void Texture::WriteWithStaging(const CommandEncoder& commandEncoder, const void*
                 .SetImage(image)
                 .SetLayout(vk::ImageLayout::eTransferDstOptimal, vk::ImageLayout::eShaderReadOnlyOptimal)
                 .InferStagesAndAccess()
+                .SetMipLevels(mipLevel)
+                .SetArrayLayers(arrayLayer)
                 .FinishImageBarrier()
             .FinishBarriers();
     }, "DVK Texture WriteWithStaging");
+}
+
+void Texture::WriteWithStagingAndGenerateMipMaps(
+    const CommandEncoder& commandEncoder,
+    const void* src,
+    vk::DeviceSize size,
+    uint32_t mipMapCount,
+    uint32_t arrayLayer
+) {
+    auto stagingBuffer = Buffer::CreateStagingBuffer(commandEncoder.GetDevice(), size);
+    std::memcpy(stagingBuffer->GetMappedData(), src, size);
+
+    commandEncoder.ExecuteAndWait([&](CommandBuffer& commandBuffer) {
+        commandBuffer.InsertBarriers()
+            .AddImageBarrier()
+                .SetImage(image)
+                .SetLayout(vk::ImageLayout::eUndefined, vk::ImageLayout::eTransferDstOptimal)
+                .SetStages(vk::PipelineStageFlagBits2::eTopOfPipe, vk::PipelineStageFlagBits2::eTransfer)
+                .SetAccess({}, vk::AccessFlagBits2::eTransferWrite)
+                .SetMipLevels(0, mipMapCount)
+                .SetArrayLayers(arrayLayer)
+                .FinishImageBarrier()
+            .FinishBarriers();
+        copyBufferToImage(commandBuffer.GetCommandBuffer(), stagingBuffer->GetBuffer(), image, extent, 0, arrayLayer);
+        commandBuffer.InsertBarriers()
+            .AddImageBarrier()
+                .SetImage(image)
+                .SetLayout(vk::ImageLayout::eTransferDstOptimal, vk::ImageLayout::eTransferSrcOptimal)
+                .SetStages(vk::PipelineStageFlagBits2::eTransfer, vk::PipelineStageFlagBits2::eTransfer)
+                .SetAccess(vk::AccessFlagBits2::eTransferWrite, vk::AccessFlagBits2::eTransferRead)
+                .SetMipLevels(0, mipMapCount)
+                .SetArrayLayers(arrayLayer)
+                .FinishImageBarrier()
+            .AddImageBarrier()
+                .SetImage(image)
+                .SetLayout(vk::ImageLayout::eUndefined, vk::ImageLayout::eTransferDstOptimal)
+                .SetStages(vk::PipelineStageFlagBits2::eTopOfPipe, vk::PipelineStageFlagBits2::eTransfer)
+                .SetAccess({}, vk::AccessFlagBits2::eTransferWrite)
+                .SetMipLevels(1, mipMapCount - 1)
+                .SetArrayLayers(arrayLayer)
+                .FinishImageBarrier()
+            .FinishBarriers();
+        for (uint32_t i = 1; i < mipMapCount; i++) {
+            blitImage(
+                commandBuffer.GetCommandBuffer(),
+                image,
+                image,
+                GetExtent(),
+                i - 1,
+                i,
+                arrayLayer
+            );
+            commandBuffer.InsertBarriers()
+                .AddImageBarrier()
+                    .SetImage(image)
+                    .SetLayout(vk::ImageLayout::eTransferDstOptimal, vk::ImageLayout::eTransferSrcOptimal)
+                    .SetStages(vk::PipelineStageFlagBits2::eTransfer, vk::PipelineStageFlagBits2::eTransfer)
+                    .SetAccess(vk::AccessFlagBits2::eTransferWrite, vk::AccessFlagBits2::eTransferRead)
+                    .SetMipLevels(i)
+                    .SetArrayLayers(arrayLayer)
+                    .FinishImageBarrier()
+                .FinishBarriers();
+        }
+        commandBuffer.InsertBarriers()
+            .AddImageBarrier()
+                .SetImage(image)
+                .SetLayout(vk::ImageLayout::eTransferSrcOptimal, vk::ImageLayout::eShaderReadOnlyOptimal)
+                .SetStages(vk::PipelineStageFlagBits2::eTransfer, vk::PipelineStageFlagBits2::eFragmentShader)
+                .SetAccess(vk::AccessFlagBits2::eTransferRead, vk::AccessFlagBits2::eShaderRead)
+                .SetMipLevels(0, mipMapCount)
+                .SetArrayLayers(arrayLayer)
+                .FinishImageBarrier()
+            .FinishBarriers();
+
+    }, "DVK Texture WriteWithStagingAndGenerateMipMaps");
 }
 
 void Texture::SimpleLayoutBarrier(CommandBuffer& commandBuffer, vk::ImageLayout from, vk::ImageLayout to) {
