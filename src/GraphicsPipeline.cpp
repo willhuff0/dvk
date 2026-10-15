@@ -236,7 +236,7 @@ GraphicsPipeline::Ref GraphicsPipeline::Builder::Build() {
 GraphicsPipeline::RasterizerBuilder::RasterizerBuilder(Builder& builder) : builder(builder) { }
 
 GraphicsPipeline::RasterizerBuilder& GraphicsPipeline::RasterizerBuilder::EnableDepthClamp(bool enabled) {
-    builder.rasterizationState.depthBiasClamp = enabled ? vk::True : vk::False;
+    builder.rasterizationState.depthClampEnable = enabled ? vk::True : vk::False;
     return *this;
 }
 

@@ -91,7 +91,7 @@ namespace dvk {
         public:
             explicit RasterizerBuilder(Builder& builder);
 
-            RasterizerBuilder& EnableDepthClamp(bool enabled = false);
+            RasterizerBuilder& EnableDepthClamp(bool enabled = true);
             RasterizerBuilder& SetPolygonMode(vk::PolygonMode polygonMode);
             RasterizerBuilder& SetCullMode(vk::CullModeFlags cullMode);
             RasterizerBuilder& SetFrontFace(vk::FrontFace frontFace);

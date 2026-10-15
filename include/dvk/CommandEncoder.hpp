@@ -8,6 +8,7 @@
 #include <tuple>
 #include <functional>
 #include <memory>
+#include <span>
 
 namespace dvk {
     class Device;
@@ -20,7 +21,11 @@ namespace dvk {
 
         const vk::raii::Semaphore& WaitForNextFrame() const;
         [[nodiscard]] std::tuple<uint32_t, CommandBuffer&> GetNextFrame();
-        void SubmitFrame(uint32_t frameIndex, const vk::raii::Semaphore& willSignalOnRenderFinished) const;
+        // extraWaits: additional semaphores the frame waits on, e.g. an upload timeline semaphore.
+        void SubmitFrame(
+            uint32_t frameIndex,
+            const vk::raii::Semaphore& willSignalOnRenderFinished,
+            std::span<const vk::SemaphoreSubmitInfo> extraWaits = {}) const;
 
         void ExecuteAndWait(const std::function<void(CommandBuffer&)>& func, const std::string& label = "DVK ExecuteAndWait") const;
 

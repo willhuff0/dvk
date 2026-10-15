@@ -72,22 +72,38 @@ std::tuple<uint32_t, CommandBuffer&> CommandEncoder::GetNextFrame() {
     return { frameIndex, frameContext.commandBuffer };
 }
 
-void CommandEncoder::SubmitFrame(uint32_t frameIndex, const vk::raii::Semaphore& willSignalOnRenderFinished) const {
+void CommandEncoder::SubmitFrame(
+    uint32_t frameIndex,
+    const vk::raii::Semaphore& willSignalOnRenderFinished,
+    std::span<const vk::SemaphoreSubmitInfo> extraWaits
+) const {
     auto& frameContext = frameContexts[frameIndex];
 
     frameContext.commandBuffer.GetCommandBuffer().end();
 
-    vk::PipelineStageFlags waitDestinationStageMask(vk::PipelineStageFlagBits::eColorAttachmentOutput);
-    const vk::SubmitInfo submitInfo {
-        .waitSemaphoreCount = 1,
-        .pWaitSemaphores = &*frameContext.presentCompleteSemaphore,
-        .pWaitDstStageMask = &waitDestinationStageMask,
-        .commandBufferCount = 1,
-        .pCommandBuffers = &*frameContext.commandBuffer.GetCommandBuffer(),
-        .signalSemaphoreCount = 1,
-        .pSignalSemaphores = &*willSignalOnRenderFinished,
+    std::vector<vk::SemaphoreSubmitInfo> waits;
+    waits.reserve(1 + extraWaits.size());
+    waits.push_back({
+        .semaphore = *frameContext.presentCompleteSemaphore,
+        .stageMask = vk::PipelineStageFlagBits2::eColorAttachmentOutput,
+    });
+    waits.insert(waits.end(), extraWaits.begin(), extraWaits.end());
+
+    const vk::CommandBufferSubmitInfo commandBufferInfo {
+        .commandBuffer = *frameContext.commandBuffer.GetCommandBuffer(),
     };
-    device.GetQueue().submit(submitInfo, *frameContext.fence);
+    const vk::SemaphoreSubmitInfo signal {
+        .semaphore = *willSignalOnRenderFinished,
+        .stageMask = vk::PipelineStageFlagBits2::eAllCommands,
+    };
+    device.GetQueue().submit2(vk::SubmitInfo2 {
+        .waitSemaphoreInfoCount = static_cast<uint32_t>(waits.size()),
+        .pWaitSemaphoreInfos = waits.data(),
+        .commandBufferInfoCount = 1,
+        .pCommandBufferInfos = &commandBufferInfo,
+        .signalSemaphoreInfoCount = 1,
+        .pSignalSemaphoreInfos = &signal,
+    }, *frameContext.fence);
 }
 
 void CommandEncoder::ExecuteAndWait(const std::function<void(CommandBuffer&)>& func, const std::string& label) const {

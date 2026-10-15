@@ -1,4 +1,5 @@
 #include <dvk/Device.hpp>
+#include <dvk/Config.hpp>
 #include "dvk/Instance.hpp"
 #include "dvk/Surface.hpp"
 
@@ -58,12 +59,14 @@ Device::Device(const Instance& instance, const Surface& surface) {
                 vk::PhysicalDeviceFragmentShaderBarycentricFeaturesKHR
             >();
             if (!features.get<vk::PhysicalDeviceFeatures2>().features.samplerAnisotropy) return true;
+            if (!features.get<vk::PhysicalDeviceFeatures2>().features.depthClamp) return true;
             if (!features.get<vk::PhysicalDeviceVulkan11Features>().shaderDrawParameters) return true;
             if (!features.get<vk::PhysicalDeviceVulkan12Features>().drawIndirectCount) return true;
             if (!features.get<vk::PhysicalDeviceVulkan12Features>().shaderSampledImageArrayNonUniformIndexing) return true;
             if (!features.get<vk::PhysicalDeviceVulkan12Features>().descriptorBindingSampledImageUpdateAfterBind) return true;
             if (!features.get<vk::PhysicalDeviceVulkan12Features>().descriptorBindingPartiallyBound) return true;
             if (!features.get<vk::PhysicalDeviceVulkan12Features>().runtimeDescriptorArray) return true;
+            if (!features.get<vk::PhysicalDeviceVulkan12Features>().timelineSemaphore) return true;
             if (!features.get<vk::PhysicalDeviceVulkan13Features>().synchronization2) return true;
             if (!features.get<vk::PhysicalDeviceVulkan13Features>().dynamicRendering) return true;
             if (!features.get<vk::PhysicalDeviceFragmentShaderBarycentricFeaturesKHR>().fragmentShaderBarycentric) return true;
@@ -107,6 +110,7 @@ Device::Device(const Instance& instance, const Surface& surface) {
         > featureChain = {
             {
                 .features = {
+                    .depthClamp = true,
                     .samplerAnisotropy = true,
                 },
             },
@@ -119,6 +123,7 @@ Device::Device(const Instance& instance, const Surface& surface) {
                 .descriptorBindingSampledImageUpdateAfterBind = true,
                 .descriptorBindingPartiallyBound = true,
                 .runtimeDescriptorArray = true,
+                .timelineSemaphore = true,
             },
             {
                 .synchronization2 = true,
@@ -137,20 +142,58 @@ Device::Device(const Instance& instance, const Surface& surface) {
             extensions.push_back("VK_KHR_portability_subset");
         }
 
-        float queuePriority = 0.5f;
-        vk::DeviceQueueCreateInfo queueCreateInfo {
+        // Transfer queue: prefer a transfer-only family (no graphics/compute), which maps to the copy/DMA engine.
+        for (uint32_t i = 0; i < queueFamilies.size(); i++) {
+            auto flags = queueFamilies[i].queueFlags;
+            if (!(flags & vk::QueueFlagBits::eTransfer)) continue;
+            if (flags & (vk::QueueFlagBits::eGraphics | vk::QueueFlagBits::eCompute)) continue;
+
+            transferQueueFamilyIndex = i;
+            break;
+        }
+
+        const float queuePriorities[2] = { 0.5f, 0.5f };
+        std::vector<vk::DeviceQueueCreateInfo> queueCreateInfos;
+        uint32_t graphicsQueueCount = 1;
+        if (transferQueueFamilyIndex == ~0 && queueFamilies[queueFamilyIndex].queueCount >= 2) {
+            // No dedicated family, fall back to a second queue in the graphics family.
+            transferQueueFamilyIndex = queueFamilyIndex;
+            graphicsQueueCount = 2;
+        }
+        queueCreateInfos.push_back({
             .queueFamilyIndex = queueFamilyIndex,
-            .queueCount = 1,
-            .pQueuePriorities = &queuePriority,
-        };
+            .queueCount = graphicsQueueCount,
+            .pQueuePriorities = queuePriorities,
+        });
+        if (transferQueueFamilyIndex != ~0 && transferQueueFamilyIndex != queueFamilyIndex) {
+            queueCreateInfos.push_back({
+                .queueFamilyIndex = transferQueueFamilyIndex,
+                .queueCount = 1,
+                .pQueuePriorities = queuePriorities,
+            });
+        }
+
         device = vk::raii::Device(physicalDevice, {
             .pNext = &featureChain.get<vk::PhysicalDeviceFeatures2>(),
-            .queueCreateInfoCount = 1,
-            .pQueueCreateInfos = &queueCreateInfo,
+            .queueCreateInfoCount = static_cast<uint32_t>(queueCreateInfos.size()),
+            .pQueueCreateInfos = queueCreateInfos.data(),
             .enabledExtensionCount = static_cast<uint32_t>(extensions.size()),
             .ppEnabledExtensionNames = extensions.data(),
         });
         queue = vk::raii::Queue(device, queueFamilyIndex, 0);
+
+        if (transferQueueFamilyIndex == ~0) {
+            transferQueueFamilyIndex = queueFamilyIndex;
+            transferQueueAliasesGraphics = true;
+            transferQueue = vk::raii::Queue(device, queueFamilyIndex, 0);
+        } else if (transferQueueFamilyIndex == queueFamilyIndex) {
+            transferQueue = vk::raii::Queue(device, queueFamilyIndex, 1);
+        } else {
+            transferQueue = vk::raii::Queue(device, transferQueueFamilyIndex, 0);
+        }
+#if defined(DVK_ENABLE_DEBUG_LABELS)
+        if (!transferQueueAliasesGraphics) device.setDebugUtilsObjectNameEXT(*transferQueue, "DVK Transfer");
+#endif
     }
 
     // Allocator
@@ -162,6 +205,7 @@ Device::Device(const Instance& instance, const Surface& surface) {
 }
 
 Device::~Device() {
+    if (!transferQueueAliasesGraphics) transferQueue.waitIdle();
     queue.waitIdle();
 }
 
@@ -179,6 +223,18 @@ const vk::raii::Queue& Device::GetQueue() const {
 
 uint32_t Device::GetQueueFamilyIndex() const {
     return queueFamilyIndex;
+}
+
+const vk::raii::Queue& Device::GetTransferQueue() const {
+    return transferQueue;
+}
+
+uint32_t Device::GetTransferQueueFamilyIndex() const {
+    return transferQueueFamilyIndex;
+}
+
+bool Device::TransferQueueAliasesGraphics() const {
+    return transferQueueAliasesGraphics;
 }
 
 const vma::raii::Allocator& Device::GetAllocator() const {
